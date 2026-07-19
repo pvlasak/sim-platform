@@ -1,16 +1,6 @@
 # sim-platform
 In some cases the model and the simulation can be two disconnected processes. The environments where engineer builds the model and where the HPC computation runs have no automatic link between each other. Sim-Platform makes the model commit and the simulation job the same atomic operation — version controlled, traceable, and reproducible from a single interface on the engineer's local machine.
 
-Engineer prepares model        HPC cluster runs simulation
-on local machine               on remote infrastructure
-        │                               │
-        │   completely disconnected     │
-        │                               │
-  model lives in a          job lives in a scheduler
-  shared network drive      queue with a job number
-  or someone's desktop      nobody knows which model
-                            version produced which result
-
 **Idea behind sim-platform:**       
 Engineer works locally
   └── uploads model through sim-platform frontend
