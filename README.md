@@ -23,6 +23,17 @@ Engineer works locally
 
 
 
+Browser loads index.html
+  └── downloads and runs main.js
+        └── createApp(App) — Vue starts with App.vue as root
+              └── app.mount('#app') — renders into <div id="app">
+                    └── App.vue renders AppShell
+                          └── AppShell renders sidebar + topbar + <slot>
+                                └── <RouterView> renders the current route's view
+                                      └── URL is / → redirects to /models
+                                            └── ModelsView renders inside RouterView
+
+                                            
 Three terminals, three commands.
 
 ## Prerequisites
