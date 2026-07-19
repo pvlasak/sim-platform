@@ -11,7 +11,7 @@ on local machine               on remote infrastructure
   or someone's desktop      nobody knows which model
                             version produced which result
 
-Idea behind sim-platform:         
+**Idea behind sim-platform:**       
 Engineer works locally
   └── uploads model through sim-platform frontend
         └── model is versioned in GitLab with commit hash
@@ -22,7 +22,7 @@ Engineer works locally
                                       from the same commit hash
 
 
-
+**The full startup sequence**
 Browser loads index.html
   └── downloads and runs main.js
         └── createApp(App) — Vue starts with App.vue as root
