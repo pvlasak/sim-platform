@@ -21,7 +21,7 @@ app = FastAPI(
 # Allow the Vue dev server to call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:80"],
+    allow_origins=["http://localhost:5173", "http://localhost:8080"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

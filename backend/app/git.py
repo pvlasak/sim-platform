@@ -14,9 +14,9 @@
 import os
 import asyncio
 import shutil
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
-load_dotenv()
+#load_dotenv()
 
 GIT_REPO_PATH  = os.getenv("GIT_REPO_PATH",  "")
 GIT_BRANCH     = os.getenv("GIT_BRANCH",     "main")

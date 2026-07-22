@@ -1,0 +1,37 @@
+version: '3'
+services: 
+  backend:
+    image: sim-app-backend:1.0
+    ports:
+      - 8000:8000
+    environment:
+      - MONGODB_USER=admin
+      - MONGODB_PASSWORD=password
+      - MONGODB_DB=simflow
+      - GIT_REPO_PATH=/work/proj/github/model-repository
+      - GIT_BRANCH=main
+      - GIT_USER_NAME=simflow
+      - GIT_USER_EMAIL=simflow@example.com
+  frontend:
+    image: sim-app-frontend:1.0
+    ports: 
+      - 8080:80
+  mongodb:
+    image: mongo
+    ports: 
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+  mongo-express:
+    image: mongo-express
+    ports: 
+      - 8081:8081
+    restart: always
+    environment:
+     - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+     - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+     - ME_CONFIG_BASICAUTH_USERNAME=express
+     - ME_CONFIG_BASICAUTH_PASSWORD=pass
+     - ME_CONFIG_MONGODB_SERVER=mongodb
+     - ME_CONFIG_MONGODB_URL=mongodb://mongodb:27017
