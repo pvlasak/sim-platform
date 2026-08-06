@@ -18,20 +18,23 @@ import shutil
 
 #load_dotenv()
 
-GIT_REPO_PATH  = os.getenv("GIT_REPO_PATH",  "")
+APP_DIR = os.getenv("APP_DIR",  "/home/app/")
+GIT_REPO_NAME = os.getenv("GIT_REPO_NAME", "model-repository")
+GIT_REPO_PATH  = os.getenv("GIT_REPO_PATH",  "/home/app/model-repository")
+GIT_REMOTE_URL = os.getenv("GIT_REMOTE_URL", "git@gitlab.com:pvlasak-group/model-repository.git")
 GIT_BRANCH     = os.getenv("GIT_BRANCH",     "main")
 GIT_USER_NAME  = os.getenv("GIT_USER_NAME",  "SimFlow Bot")
 GIT_USER_EMAIL = os.getenv("GIT_USER_EMAIL", "simflow@example.com")
 
 
-async def _run(cmd: list[str]) -> tuple[int, str]:
+async def _run(cmd: list[str],  cwd: str = GIT_REPO_PATH) -> tuple[int, str]:
     """
     Run a git command inside GIT_REPO_PATH.
     Returns (exit_code, stderr).
     """
     proc = await asyncio.create_subprocess_exec(
         *cmd,
-        cwd=GIT_REPO_PATH,
+        cwd=cwd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -68,10 +71,15 @@ async def push_model_to_git(
         print("[git] GIT_REPO_PATH not set in .env — skipping")
         return {"success": False, "commit_id": None, "error": "GIT_REPO_PATH not set"}
 
+    # If the repo folder doesn't exist locally, clone it fresh
     if not os.path.isdir(GIT_REPO_PATH):
-        print(f"[git] '{GIT_REPO_PATH}' not found — skipping")
-        return {"success": False, "commit_id": None, "error": "Repo not found"}
+        print(f"[git] '{GIT_REPO_PATH}' not found — cloning {GIT_REMOTE_URL} into {APP_DIR}")
+        rc, err = await _run(["git", "clone", GIT_REMOTE_URL, GIT_REPO_PATH], cwd=APP_DIR)
+        if rc != 0:
+            print(f"[git] 'git clone' failed: {err}")
+            return {"success": False, "commit_id": None, "error": f"git clone failed: {err}"}
 
+        
     # Copy uploaded file directly into the root of the repo
     shutil.copy2(file_path, os.path.join(GIT_REPO_PATH, file_name))
 
@@ -81,7 +89,7 @@ async def push_model_to_git(
         ["git", "config", "user.email", GIT_USER_EMAIL],
         ["git", "add",    file_name],
         ["git", "commit", "-m", f"{commit_msg} (by {author})"],
-        ["git", "push",   "origin", GIT_BRANCH],
+        ["git", "push", "-u", "origin", GIT_BRANCH],
     ]
 
     for cmd in commands:

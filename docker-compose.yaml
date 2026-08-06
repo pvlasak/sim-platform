@@ -8,7 +8,10 @@ services:
       - MONGODB_USER=admin
       - MONGODB_PASSWORD=password
       - MONGODB_DB=simflow
-      - GIT_REPO_PATH=/work/proj/github/model-repository
+      - APP_DIR=/home/app/
+      - GIT_REPO_PATH=/home/app/model-repository
+      - GIT_REPO_NAME=model-repository
+      - GIT_REMOTE_URL=git@gitlab.com:pvlasak-group/model-repository.git
       - GIT_BRANCH=main
       - GIT_USER_NAME=simflow
       - GIT_USER_EMAIL=simflow@example.com
