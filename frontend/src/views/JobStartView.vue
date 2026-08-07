@@ -114,7 +114,7 @@
               <div class="summary-row"><div class="sk">Nodes</div><div class="sv mono">{{ form.nodes }} ({{ form.nodes * selectedInstance.vcpu }} vCPUs)</div></div>
               <div class="summary-row"><div class="sk">Licence</div><div class="sv mono">{{ form.licence }}</div></div>
               <div class="summary-row"><div class="sk">Preset</div><div class="sv">{{ form.preset }}</div></div>
-              <div class="summary-row"><div class="sk">Started by</div><div class="sv">M. Kowalski</div></div>
+              <div class="summary-row"><div class="sk">Started by</div><div class="sv">P. Vlasak</div></div>
             </div>
           </div>
         </div>

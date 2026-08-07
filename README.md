@@ -59,11 +59,8 @@ Install these once if you don't have them:
   4. mongodb
   5. mongo-express
 - enter backend container: *docker exec -it <container_id> /bin/sh*
-- install git and openssh inside the backend container:
-  1. *apk add git*
-  2. *apk add openssh*
-- `known_hosts` file can be updated by running a command: *ssh -T git@gitlab.com*
 - create private key file id_rsa in `/root/.ssh` and adjust permissions as chmod 600 for the whole `/root/.ssh` directory
+- `known_hosts` file can be updated by running a command: *ssh-keyscan -t rsa gitlab.com >> /root/.ssh/known_hosts* that fetches the public key from github server. 
 
 ## Stop application 
 - *docker compose -f docker-compose.yaml down*

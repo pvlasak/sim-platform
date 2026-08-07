@@ -53,6 +53,8 @@ async def create_model(
     git_result = await push_model_to_git(
         file_path  = temp_path,
         file_name  = file.filename,
+        model_id   = model_id,
+        project    = project,
         commit_msg = commit_msg,
         author     = committed_by,
     )
