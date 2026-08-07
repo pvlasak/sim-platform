@@ -14,24 +14,33 @@
 import os
 import asyncio
 import shutil
-from dotenv import load_dotenv
+import re
+#from dotenv import load_dotenv
 
-load_dotenv()
+#load_dotenv()
 
-GIT_REPO_PATH  = os.getenv("GIT_REPO_PATH",  "")
+APP_DIR = os.getenv("APP_DIR",  "/home/app/")
+GIT_REPO_NAME = os.getenv("GIT_REPO_NAME", "model-repository")
+GIT_REPO_PATH  = os.getenv("GIT_REPO_PATH",  "/home/app/model-repository")
+GIT_REMOTE_URL = os.getenv("GIT_REMOTE_URL", "git@gitlab.com:pvlasak-group/model-repository.git")
 GIT_BRANCH     = os.getenv("GIT_BRANCH",     "main")
 GIT_USER_NAME  = os.getenv("GIT_USER_NAME",  "SimFlow Bot")
 GIT_USER_EMAIL = os.getenv("GIT_USER_EMAIL", "simflow@example.com")
 
+def sanitize_project_name(s: str) -> str:
+    """Strip anything that isn't alphanumeric/underscore/hyphen, to keep
+    the value safe for use as a directory name inside the repo."""
+    slug = re.sub(r'[^a-zA-Z0-9_-]', '_', s).strip('_')
+    return slug or "unnamed"
 
-async def _run(cmd: list[str]) -> tuple[int, str]:
+async def _run(cmd: list[str],  cwd: str = GIT_REPO_PATH) -> tuple[int, str]:
     """
     Run a git command inside GIT_REPO_PATH.
     Returns (exit_code, stderr).
     """
     proc = await asyncio.create_subprocess_exec(
         *cmd,
-        cwd=GIT_REPO_PATH,
+        cwd=cwd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -42,6 +51,8 @@ async def _run(cmd: list[str]) -> tuple[int, str]:
 async def push_model_to_git(
     file_path:  str,
     file_name:  str,
+    model_id:   str,
+    project:    str,
     commit_msg: str,
     author:     str,
 ) -> dict:
@@ -68,20 +79,33 @@ async def push_model_to_git(
         print("[git] GIT_REPO_PATH not set in .env — skipping")
         return {"success": False, "commit_id": None, "error": "GIT_REPO_PATH not set"}
 
+    # If the repo folder doesn't exist locally, clone it fresh
     if not os.path.isdir(GIT_REPO_PATH):
-        print(f"[git] '{GIT_REPO_PATH}' not found — skipping")
-        return {"success": False, "commit_id": None, "error": "Repo not found"}
+        print(f"[git] '{GIT_REPO_PATH}' not found — cloning {GIT_REMOTE_URL} into {APP_DIR}")
+        rc, err = await _run(["git", "clone", GIT_REMOTE_URL, GIT_REPO_PATH], cwd=APP_DIR)
+        if rc != 0:
+            print(f"[git] 'git clone' failed: {err}")
+            return {"success": False, "commit_id": None, "error": f"git clone failed: {err}"}
+
+    # Build a unique, sanitized directory name at repo root: <model_id>_<project>/
+    safe_file_name = os.path.basename(file_name)  # strip any path components client sent
+    relative_dir   = f"{model_id}_{sanitize_project_name(project)}"
+    target_dir     = os.path.join(GIT_REPO_PATH, relative_dir)
+    os.makedirs(target_dir, exist_ok=True)
+
+    relative_path = os.path.join(relative_dir, safe_file_name)
+    target_path   = os.path.join(GIT_REPO_PATH, relative_path)
 
     # Copy uploaded file directly into the root of the repo
-    shutil.copy2(file_path, os.path.join(GIT_REPO_PATH, file_name))
+    shutil.copy2(file_path, target_path)
 
     # Git commands — stop on first failure
     commands = [
         ["git", "config", "user.name",  GIT_USER_NAME],
         ["git", "config", "user.email", GIT_USER_EMAIL],
-        ["git", "add",    file_name],
+        ["git", "add",    relative_path],
         ["git", "commit", "-m", f"{commit_msg} (by {author})"],
-        ["git", "push",   "origin", GIT_BRANCH],
+        ["git", "push", "-u", "origin", GIT_BRANCH],
     ]
 
     for cmd in commands:
@@ -102,5 +126,5 @@ async def push_model_to_git(
     stdout, _ = await proc.communicate()
     commit_id  = stdout.decode().strip()
 
-    print(f"[git] Pushed '{file_name}' — commit {commit_id}")
+    print(f"[git] Pushed '{relative_path}' — commit {commit_id}")
     return {"success": True, "commit_id": commit_id, "error": None}

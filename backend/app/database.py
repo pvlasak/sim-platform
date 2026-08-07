@@ -1,15 +1,17 @@
 # backend/app/database.py
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
-load_dotenv()   # reads backend/.env when running locally
+#load_dotenv()   # reads backend/.env when running locally
 
 _client = None
 
 async def connect_db():
     global _client
-    url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    username=os.getenv("MONGODB_USER")
+    password=os.getenv("MONGODB_PASSWORD")
+    url = os.getenv("MONGODB_URL", f"mongodb://{username}:{password}@mongodb:27017")
     _client = AsyncIOMotorClient(url)
     print(f"MongoDB connected: {url}")
 
