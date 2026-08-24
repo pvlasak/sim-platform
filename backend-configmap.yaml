@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-configmap
+data:
+  app-dir: "/home/app/"
+  git-repo-path: "/home/app/model-repository"
+  git-repo-name: "model-repository"
+  git-repo-url: "git@gitlab.com:pvlasak-group/model-repository.git"
+  git-branch: "main"
+  git-user-name: "simflow"
+  git-user-email: "simflow@example.com"

@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: backend
+    labels: 
+      app: backend
+spec:
+    replicas: 2
+    selector: 
+      matchLabels:  
+        app: backend
+    template:
+        metadata:
+          labels:
+            app: backend
+        spec:
+          containers:
+          - name: backend
+            image: public.ecr.aws/f6c0q2k2/sim-app-backend:1.0.0
+            imagePullPolicy: Always
+            ports:
+            - containerPort: 8000
+            readinessProbe:
+              httpGet:
+                path: /health
+                port: 8000
+              initialDelaySeconds: 5
+              periodSeconds: 10
+            livenessProbe:
+              httpGet:
+                path: /health
+                port: 8000
+              initialDelaySeconds: 15
+              periodSeconds: 20
+            env:
+            - name: MONGODB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongo-root-username
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongo-root-password
+            - name: MONGO_DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-configmap
+                  key: database_url
+            - name: MONGODB_URL
+              value: "mongodb://$(MONGODB_USER):$(MONGODB_PASSWORD)@$(MONGO_DATABASE_URL)"
+            - name: MONGODB_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-configmap
+                  key: mongodb-db
+            - name: APP_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: app-dir
+            - name: GIT_REPO_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: git-repo-path
+            - name: GIT_REPO_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: git-repo-name
+            - name: GIT_REMOTE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: git-repo-url
+            - name: GIT_BRANCH
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: git-branch
+            - name: GIT_USER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: git-user-name
+            - name: GIT_USER_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: git-user-email 
+            volumeMounts:
+            - name: known-hosts-volume
+              mountPath: /root/.ssh/known_hosts
+              subPath: known_hosts
+              readOnly: true
+            - name: private-key-volume
+              mountPath: /root/.ssh/id_rsa
+              subPath: id_rsa
+              readOnly: true
+          volumes:
+          - name: known-hosts-volume
+            configMap:
+              name: known-hosts-configmap
+          - name: private-key-volume
+            secret:
+              secretName: private-key-secret
+              defaultMode: 0400
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000    
