@@ -64,3 +64,59 @@ Install these once if you don't have them:
 
 ## Stop application 
 - *docker compose -f docker-compose.yaml down*
+
+--
+## Deploy application on EKS Cluster
+- `mongo-secret.yaml` not needed. 
+
+### 1. Create cluster with OIDC enabled
+eksctl create cluster \
+  --name my-cluster \
+  --region us-east-2 \
+  --version 1.30 \
+  --nodegroup-name ng-1 \
+  --node-type m5.large \
+  --nodes 3 \
+  --with-oidc
+### 2. Create IAM service account for EBS CSI driver
+eksctl create iamserviceaccount \
+  --name ebs-csi-controller-sa \
+  --namespace kube-system \
+  --cluster my-cluster \
+  --role-name AmazonEKS_EBS_CSI_DriverRole \
+  --role-only \
+  --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+  --approve
+### 3. Install the driver add-on
+eksctl create addon \
+  --cluster my-cluster \
+  --name aws-ebs-csi-driver \
+  --service-account-role-arn arn:aws:iam::<account-id>:role/AmazonEKS_EBS_CSI_DriverRole \
+  --force
+### 4. Create StorageClass
+kubectl apply -f mongodb-storageClass.yaml
+### 5. Install MongoDB as StatefulSet to persist database data
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm search repo bitnami
+helm install mongodb --values mongodb-helm-values.yaml bitnami/mongodb
+### 6. Create MongoDB ConfigMap
+kubectl apply -f mongodb-configmap.yaml
+### 7. Create application backend configmap
+kubectl apply -f backend-configmap.yaml
+### 8. Create SSH key secret for GitLab
+kubectl apply -f gitlab-private-key-secret.yaml
+### 9. Create known_hosts configmap for GitLab
+kubectl apply -f known_hosts_config.yaml
+### 10. Create backend deployment
+kubectl apply -f backend.yaml
+### 11. Create frontend deployment
+kubectl apply -f frontend.yaml
+### 12. - install Nginx Ingress Controller using helm as sequence of commands in a new namespace:
+  - *kubectl create namespace ingress-nginx*
+  - *helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx*
+  - *helm repo update*
+  - *helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx*
+
+### 13. Update DNS name of AWS Loadbalancer and in both ingress config files and apply them:
+kubectl apply -f api-ingress.yaml
+kubectl apply -f frontend-ingress.yaml

@@ -34,15 +34,12 @@ spec:
               periodSeconds: 20
             env:
             - name: MONGODB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-username
+              value: "root"
             - name: MONGODB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-password
+                  name: mongodb
+                  key: mongodb-root-password
             - name: MONGO_DATABASE_URL
               valueFrom:
                 configMapKeyRef:

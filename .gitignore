@@ -6,4 +6,4 @@ backend/app/__pycache__/
 backend/app/routers/__pycache__
 gitlab-private-key-secret.yaml
 mongo-secret.yaml
-
+mongodb-helm-values.yaml
