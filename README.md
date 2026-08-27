@@ -11,16 +11,7 @@ Engineer works locally
 - anyone can reproduce the run rom the same commit hash
 
 
-**The full startup sequence**
-- Browser loads index.html
-- downloads and runs main.js
-- createApp(App) — Vue starts with App.vue as root
-- app.mount('#app') — renders into <div id="app">
-- App.vue renders AppShell and AppShell renders sidebar + topbar + <slot>
-- <RouterView> renders the current route's view
-- URL is / → redirects to /models --> ModelsView renders inside RouterView
-
-##Project goals:
+## Project goals:
 - build **simulation operations platform**
 ### 1 — Model Management
 Engineers upload a model files through a browser interface. Each upload creates a GitLab commit automatically — giving every model version a unique commit hash, a timestamp, and an author. The model repository is the single source of truth.
@@ -48,24 +39,9 @@ Install these once if you don't have them:
 
 - Install Docker
 - Install Docker Compose
+- Configure AWS Credentials
+- Install eksctl, kubectl 
 
----
-## Start with Docker Compose
-- application is running on localhost:8080
-- mongo-express is accessible on localhost:8081
-- `docker-compose.yaml` starts 4 containers via command *docker compose -f docker-compose.yaml up*:
-  1. backend
-  2. frontend
-  4. mongodb
-  5. mongo-express
-- enter backend container: *docker exec -it <container_id> /bin/sh*
-- create private key file id_rsa in `/root/.ssh` and adjust permissions as chmod 600 for the whole `/root/.ssh` directory
-- `known_hosts` file can be updated by running a command: *ssh-keyscan -t rsa gitlab.com >> /root/.ssh/known_hosts* that fetches the public key from github server. 
-
-## Stop application 
-- *docker compose -f docker-compose.yaml down*
-
---
 ## Deploy application on EKS Cluster
 - `mongo-secret.yaml` not needed. 
 
