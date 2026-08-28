@@ -7,3 +7,16 @@ backend/app/routers/__pycache__
 gitlab-private-key-secret.yaml
 mongo-secret.yaml
 mongodb-helm-values.yaml
+
+# local .terraform dir
+.terraform/*
+
+# tf state files
+*.tfstate
+*.tfstate.*
+
+# tf variable files, may include sensitive data
+*.tfvars
+
+venv/
+kubeconfig-eks-cluster/*
