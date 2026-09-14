@@ -45,7 +45,9 @@ Install these once if you don't have them:
 ## Deploy application on EKS Cluster
 - `mongo-secret.yaml` not needed. 
 
-### 1. Create cluster with OIDC enabled
+## Manual Application Deployment
+
+#### 1. Create cluster with OIDC enabled
 eksctl create cluster \
   --name my-cluster \
   --region us-east-2 \
@@ -54,7 +56,7 @@ eksctl create cluster \
   --node-type m5.large \
   --nodes 3 \
   --with-oidc
-### 2. Create IAM service account for EBS CSI driver
+#### 2. Create IAM service account for EBS CSI driver
 eksctl create iamserviceaccount \
   --name ebs-csi-controller-sa \
   --namespace kube-system \
@@ -63,36 +65,59 @@ eksctl create iamserviceaccount \
   --role-only \
   --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
   --approve
-### 3. Install the driver add-on
+#### 3. Install the driver add-on
 eksctl create addon \
   --cluster my-cluster \
   --name aws-ebs-csi-driver \
   --service-account-role-arn arn:aws:iam::<account-id>:role/AmazonEKS_EBS_CSI_DriverRole \
   --force
-### 4. Create StorageClass
+#### 4. Create StorageClass
 kubectl apply -f mongodb-storageClass.yaml
-### 5. Install MongoDB as StatefulSet to persist database data
+#### 5. Install MongoDB as StatefulSet to persist database data
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm search repo bitnami
 helm install mongodb --values mongodb-helm-values.yaml bitnami/mongodb
-### 6. Create MongoDB ConfigMap
+#### 6. Create MongoDB ConfigMap
 kubectl apply -f mongodb-configmap.yaml
-### 7. Create application backend configmap
+#### 7. Create application backend configmap
 kubectl apply -f backend-configmap.yaml
-### 8. Create SSH key secret for GitLab
+#### 8. Create SSH key secret for GitLab
 kubectl apply -f gitlab-private-key-secret.yaml
-### 9. Create known_hosts configmap for GitLab
+#### 9. Create known_hosts configmap for GitLab
 kubectl apply -f known_hosts_config.yaml
-### 10. Create backend deployment
+####### 10. Create backend deployment
 kubectl apply -f backend.yaml
-### 11. Create frontend deployment
+#### 11. Create frontend deployment
 kubectl apply -f frontend.yaml
-### 12. - install Nginx Ingress Controller using helm as sequence of commands in a new namespace:
+#### 12. - install Nginx Ingress Controller using helm as sequence of commands in a new namespace:
   - *kubectl create namespace ingress-nginx*
   - *helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx*
   - *helm repo update*
   - *helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx*
 
-### 13. Update DNS name of AWS Loadbalancer and in both ingress config files and apply them:
+#### 13. Update DNS name of AWS Loadbalancer and in both ingress config files and apply them:
 kubectl apply -f api-ingress.yaml
 kubectl apply -f frontend-ingress.yaml
+
+## Automated Application Deployment
+
+#### 1. Infrastructure Provisioning using Terraform 
+  - Terraform script provisioning EKS cluster on AWS is available in the repository.
+  - Be careful about the region name where the cluster is going to be created. 
+  - It is necessary to create `terraform.tfvars` file that defines few variables that `main.tf` needs:
+    1. vpc_cidr_block = ""
+    2. private_subnets = ["", "", ""]
+    3. public_subnets = ["", "", ""]
+    4. instance_types = [""]
+    
+  - Terraform is initialiazed and provisioner is installed by *terraform init*
+  - Terraform configuration gets executed by command: *terraform apply*
+  - Terraform Infrastructure is destroyed by running a command *terraform destroy*
+
+#### 2. Configuring EKS cluster using Ansible
+
+- Get kubeconfig file from newly created cluster and save it to location that ansible playbook references and that is defined in `ansible-vars`. kubeconfig file can be found and downloaded by AWS CLI commands:
+*aws eks update-kubeconfig --region eu-central-1 --name sim-app-cluster --kubeconfig {kubeconfig_path}*
+- Ansible Playbook can be started as *ansible-playbook ansible-playbook-sim-app.yaml*
+- To connect to EKS cluster from localhost an environmental variable KUBECONFIG has to be exported as *export KUBECONFIG={kubeconfig_path}* and kubectl commands can be used subsequently. 
+
