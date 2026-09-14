@@ -39,13 +39,21 @@ Install these once if you don't have them:
 
 - Install Docker
 - Install Docker Compose
-- Configure AWS Credentials
-- Install eksctl, kubectl 
+- Configure AWS API Credentials - AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+- Install eksctl
+- Install kubectl 
 
 ## Deploy application on EKS Cluster
 - `mongo-secret.yaml` not needed. 
 
-## Manual Application Deployment
+### Manual Application Deployment
+
+#### Prerequisites
+
+- Configure AWS API Credentials - AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+- Install eksctl
+- Install kubectl
+- Install helm 
 
 #### 1. Create cluster with OIDC enabled
 eksctl create cluster \
@@ -101,6 +109,14 @@ kubectl apply -f frontend-ingress.yaml
 
 ## Automated Application Deployment
 
+#### Prerequisites
+- Configure AWS Credentials
+- install terraform
+- Install ansible
+- Install kubectl
+- Install AWS CLI
+- Install aws-iam-authenticator
+  
 #### 1. Infrastructure Provisioning using Terraform 
   - Terraform script provisioning EKS cluster on AWS is available in the repository.
   - Be careful about the region name where the cluster is going to be created. 
