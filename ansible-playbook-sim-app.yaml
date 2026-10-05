@@ -1,0 +1,135 @@
+---
+- name: Deploy Nginx Controller in a namespace
+  hosts: localhost
+  vars_files:
+    - ansible-vars
+  tasks:
+    - name: Create a k8s namespace for nginx ingress controller
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: ingress-nginx
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+    - name: Add ingress-nginx helm repo
+      kubernetes.core.helm_repository:
+        repo_name: ingress-nginx
+        repo_url: https://kubernetes.github.io/ingress-nginx
+        repo_state: present
+
+    - name: Install ingress-nginx
+      kubernetes.core.helm:
+        release_name: ingress-nginx
+        update_repo_cache: yes
+        kubeconfig: "{{ kubeconfig_path }}"
+        chart_ref: ingress-nginx/ingress-nginx
+        release_namespace: ingress-nginx
+      register: helm_install_result
+    - debug: msg="{{ helm_install_result }}"
+
+    - name: Get Loadbalancer DNS Hostname
+      ansible.builtin.command:
+        cmd: kubectl get svc -n ingress-nginx ingress-nginx-controller -o json
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: nginx_ingress_svc_output
+    - debug: msg="{{ (nginx_ingress_svc_output.stdout | from_json).status.loadBalancer.ingress[0].hostname }}"
+    - name: Create a k8s namespace for the application
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ sim_app_namespace }}"
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+- name: Deploy MongoDB Application
+  hosts: localhost
+  vars_files:
+    - ansible-vars
+  tasks:
+    - name: Create a StorageClass for MongoDB
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/mongodb-storageClass.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+    - name: Install MongoDB as StatefulSet using Helm
+      kubernetes.core.helm_repository:
+        repo_name: bitnami
+        repo_url: https://charts.bitnami.com/bitnami
+        repo_state: present
+    - name: Install MongoDB Helm chart
+      kubernetes.core.helm:
+        release_name: mongodb
+        update_repo_cache: yes
+        kubeconfig: "{{ kubeconfig_path }}"
+        chart_ref: bitnami/mongodb
+        release_namespace: "{{ sim_app_namespace }}"
+        values_files:
+          - /work/proj/github/sim-platform/mongodb-helm-values.yaml
+    - name: Create a ConfigMap for MongoDB connection details used by backend application
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/mongodb-configmap.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ sim_app_namespace }}"
+- name: Deploy Backend Application
+  hosts: localhost
+  vars_files:
+    - ansible-vars
+  tasks:
+    - name: Create a ConfigMap for backend application configuration
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/backend-configmap.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ sim_app_namespace }}"
+    - name: Create a private SSH Key secret for GitLab access
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/gitlab-private-key-secret.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ sim_app_namespace }}"
+    - name: Create a ConfigMap of known hosts for GitLab access
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/known_hosts_config.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ sim_app_namespace }}"
+    - name: Deploy backend application as a Deployment
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/backend.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ sim_app_namespace }}"
+- name: Deploy Frontend Application
+  hosts: localhost
+  vars_files:
+    - ansible-vars
+  tasks:
+    - name: Deploy frontend application as a Deployment
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/frontend.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ sim_app_namespace }}"
+- name: Deploy Ingress Rules
+  hosts: localhost
+  vars_files:
+    - ansible-vars
+  tasks:
+    - name: Deploy Ingress for Frontend
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/ingress-frontend.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ sim_app_namespace }}"
+- name: Deploy Ingress for Backend Application
+  hosts: localhost
+  vars_files:
+    - ansible-vars
+  tasks:
+    - name: Deploy Ingress for API
+      kubernetes.core.k8s:
+        src: /work/proj/github/sim-platform/ingress-api.yaml
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace:  "{{ sim_app_namespace }}"

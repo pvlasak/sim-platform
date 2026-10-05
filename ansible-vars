@@ -1,0 +1,2 @@
+kubeconfig_path: /work/proj/github/sim-platform/kubeconfig-eks-cluster/eks-kubeconfig
+sim_app_namespace: sim-app
