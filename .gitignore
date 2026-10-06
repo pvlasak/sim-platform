@@ -10,13 +10,14 @@ mongodb-helm-values.yaml
 
 # local .terraform dir
 .terraform/*
+terraform/.terraform/*
 
 # tf state files
-*.tfstate
-*.tfstate.*
+terraform/*.tfstate
+terraform/*.tfstate.*
 
 # tf variable files, may include sensitive data
-*.tfvars
+terraform/*.tfvars
 
 venv/
-kubeconfig-eks-cluster/*
+ansible/kubeconfig-eks-cluster/*

@@ -22,11 +22,11 @@ pipeline {
                 sh "npm --prefix frontend run build"
             }
         }
-        stage('build and push image'){
+        stage('build and push images'){
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'aws-ecr-simapp-credentials', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
-                        echo "starting build images and pushing them to AWS ECR repository"
+                        echo "starting to build images and pushing them to AWS ECR repository"
                         dir('frontend') {
                             sh "docker build -t ${AWS_ECR_FRONTEND_REPO}:${VERSION} ."
                         }
@@ -38,6 +38,19 @@ pipeline {
                         sh "docker push ${AWS_ECR_BACKEND_REPO}:${VERSION}"
                     }
                     echo "image successfully built and pushed to AWS ECR repository..."
+                }
+            }
+        }
+        stage('provisioning eks cluster on AWS') {
+            steps {
+                script {
+                    echo "provisioning eks cluster on AWS..."
+                    dir('terraform') {
+                        sh "terraform init"
+                        sh "terraform plan"
+                        sh "aws eks update-kubeconfig --name sim-eks-cluster --region eu-central-1 --kubeconfig ~/.kube/sim-eks-kubeconfig"
+                        sh "chmod 400 ~/.kube/sim-eks-kubeconfig"
+                    }
                 }
             }
         }

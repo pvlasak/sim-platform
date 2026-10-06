@@ -2,10 +2,18 @@ provider "aws" {
     region = "eu-central-1"
 }
 
-variable vpc_cidr_block {}
-variable private_subnets {}
-variable public_subnets {}
-variable instance_types {}
+variable vpc_cidr_block {
+  default = "10.0.0.0/16"
+}
+variable private_subnets {
+  default = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+}
+variable public_subnets {
+  default = ["10.0.10.0/24", "10.0.11.0/24", "10.0.12.0/24"]
+}
+variable instance_types {
+  default = ["t2.large"]
+}
 
 data "aws_availability_zones" "azs" {}
 
