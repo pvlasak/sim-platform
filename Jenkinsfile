@@ -48,7 +48,7 @@ pipeline {
                     dir('terraform') {
                         sh "terraform init"
                         sh "terraform plan"
-                        sh "aws eks update-kubeconfig --name sim-eks-cluster --region eu-central-1 --kubeconfig ~/.kube/sim-eks-kubeconfig"
+                        sh "aws eks update-kubeconfig --name sim-app-cluster --region eu-central-1 --kubeconfig ~/.kube/sim-eks-kubeconfig"
                         sh "chmod 400 ~/.kube/sim-eks-kubeconfig"
                     }
                 }
