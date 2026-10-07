@@ -16,7 +16,7 @@ spec:
         spec:
           containers:
           - name: frontend
-            image: 086241318794.dkr.ecr.eu-central-1.amazonaws.com/sim-app-frontend:1.1.0
+            image: 086241318794.dkr.ecr.eu-central-1.amazonaws.com/sim-app-frontend:1.0.0
             imagePullPolicy: Always
             ports:
             - containerPort: 80

@@ -66,18 +66,11 @@ pipeline {
                 }
             }
         }
-        stage('deploy app') {
+        stage("Copy Ansible files to Ansible Server") {
             steps {
                 script {
                     echo "Waiting for AWS EKS cluster to be provisioned..."
                     sleep(time: 90, unit: "SECONDS")
-                    echo "deploying app..."
-                }                
-            }
-        }
-        stage("Copy Ansible files to Ansible Server") {
-            steps {
-                script {
                     echo "copying Ansible files to ansible server..."
                     sshagent(credentials: ['ansible-server-key']) {
                         sh "scp -o StrictHostKeyChecking=no ansible/* root@${ANSIBLE_SERVER}:/root/"
@@ -85,5 +78,24 @@ pipeline {
                 }
             }
         }
+        stage ("Execute Ansible playbook") {
+            steps {
+                script {
+                    echo "starting ansible playbook to configure EKS cluster"
+                    def remote = [:]
+                    remote.name = 'ansible-server'
+                    remote.host = "${ANSIBLE_SERVER}"
+                    remote.allowAnyHosts = true
+
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ansible-server-key', keyFileVariable: 'keyfile', usernameVariable: 'user')]) {
+                        remote.user = user
+                        remote.identityFile = keyfile
+                        withCredentials([usernamePassword(credentialsId: 'aws-ecr-simapp-credentials', usernameVariable: 'ECR_USER', passwordVariable: 'ECR_PASS')]) {
+                            sshCommand remote: remote, command: 'ansible-playbook ansible-playbook-sim-app.yaml -e "ecr_password=${ECR_PASS} kubeconfig_path=${kubeconfig} sim_app_namespace=sim-app"'                           
+                        }
+                    }
+                }
+            }  
+        }  
     }
 }

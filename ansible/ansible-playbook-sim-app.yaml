@@ -94,6 +94,11 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
+    - name: Docker Login
+      community.docker.docker_login:
+        registry_url: 086241318794.dkr.ecr.eu-central-1.amazonaws.com
+        username: AWS
+        password: "{{ecr_password}}"
     - name: Deploy backend application as a Deployment
       kubernetes.core.k8s:
         src: backend.yaml
@@ -105,6 +110,12 @@
   vars_files:
     - ansible-vars
   tasks:
+    - name: Docker Login
+      community.docker.docker_login:
+        registry_url: 086241318794.dkr.ecr.eu-central-1.amazonaws.com
+        username: AWS
+        password: "{{ecr_password}}"
+    - name: Run docker compose
     - name: Deploy frontend application as a Deployment
       kubernetes.core.k8s:
         src: frontend.yaml
