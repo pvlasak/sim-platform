@@ -7,6 +7,7 @@ pipeline {
         AWS_ECR_FRONTEND_REPO = "${AWS_ECR_SERVER}/sim-app-frontend"
         AWS_ECR_BACKEND_REPO = "${AWS_ECR_SERVER}/sim-app-backend"
         VERSION = "1.0.0"
+        ANSIBLE_SERVER = "167.71.47.101"
     }
     stages {
         stage("init") {
@@ -52,8 +53,15 @@ pipeline {
                     dir('terraform') {
                         sh "terraform init"
                         sh "terraform apply --auto-approve"
-                        sh "aws eks update-kubeconfig --name sim-app-cluster --region eu-central-1 --kubeconfig ~/.kube/sim-eks-kubeconfig"
-                        sh "chmod 400 ~/.kube/sim-eks-kubeconfig"
+                    }
+                }
+                script {
+                    def kubeconfig ="${env.JENKINS_HOME}/.kube/sim-eks-kubeconfig"
+                    if (!fileExists(kubeconfig)) {
+                        sh "aws eks update-kubeconfig --name sim-app-cluster --region eu-central-1 --kubeconfig ${kubeconfig}"
+                        sh "chmod 400 ${kubeconfig}"
+                    } else {
+                        echo "kubeconfig already exists, skipping..."
                     }
                 }
             }
@@ -65,6 +73,16 @@ pipeline {
                     sleep(time: 90, unit: "SECONDS")
                     echo "deploying app..."
                 }                
+            }
+        }
+        stage("Copy Ansible files to Ansible Server") {
+            steps {
+                script {
+                    echo "copying Ansible files to ansible server..."
+                    sshagent(credentials: ['ansible-server-key']) {
+                        sh "scp -o StrictHostKeyChecking=no ansible/* root@${ANSIBLE_SERVER}:/root/"
+                    }
+                }
             }
         }
     }

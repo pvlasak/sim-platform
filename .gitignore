@@ -20,4 +20,4 @@ terraform/*.tfstate.*
 terraform/*.tfvars
 
 venv/
-ansible/kubeconfig-eks-cluster/*
+kubeconfig-eks-cluster/*
