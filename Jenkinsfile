@@ -56,7 +56,7 @@ pipeline {
                     }
                 }
                 script {
-                    def kubeconfig ="${env.JENKINS_HOME}/.kube/sim-eks-kubeconfig"
+                    def kubeconfig ="${env.HOME}/sim-eks-kubeconfig"
                     if (!fileExists(kubeconfig)) {
                         sh "aws eks update-kubeconfig --name sim-app-cluster --region eu-central-1 --kubeconfig ${kubeconfig}"
                         sh "chmod 400 ${kubeconfig}"
@@ -74,6 +74,7 @@ pipeline {
                     echo "copying Ansible files to ansible server..."
                     sshagent(credentials: ['ansible-server-key']) {
                         sh "scp -o StrictHostKeyChecking=no ansible/* root@${ANSIBLE_SERVER}:/root/"
+                        sh "scp -o StrictHostKeyChecking=no ${kubeconfig} root@${ANSIBLE_SERVER}:/root/kubeconfig"
                     }
                 }
             }
@@ -91,7 +92,7 @@ pipeline {
                         remote.user = user
                         remote.identityFile = keyfile
                         withCredentials([usernamePassword(credentialsId: 'aws-ecr-simapp-credentials', usernameVariable: 'ECR_USER', passwordVariable: 'ECR_PASS')]) {
-                            sshCommand remote: remote, command: 'ansible-playbook ansible-playbook-sim-app.yaml -e "ecr_password=${ECR_PASS} kubeconfig_path=${kubeconfig} sim_app_namespace=sim-app"'                           
+                            sshCommand remote: remote, command: 'ansible-playbook ansible-playbook-sim-app.yaml -e "ecr_password=${ECR_PASS} kubeconfig_path=/root/kubeconfig sim_app_namespace=sim-app"'                           
                         }
                     }
                 }
