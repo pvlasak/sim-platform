@@ -48,7 +48,7 @@
   tasks:
     - name: Create a StorageClass for MongoDB
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/mongodb-storageClass.yaml
+        src: mongodb-storageClass.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
     - name: Install MongoDB as StatefulSet using Helm
@@ -64,10 +64,10 @@
         chart_ref: bitnami/mongodb
         release_namespace: "{{ sim_app_namespace }}"
         values_files:
-          - /work/proj/github/sim-platform/mongodb-helm-values.yaml
+          - mongodb-helm-values.yaml
     - name: Create a ConfigMap for MongoDB connection details used by backend application
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/mongodb-configmap.yaml
+        src: mongodb-configmap.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
@@ -78,25 +78,25 @@
   tasks:
     - name: Create a ConfigMap for backend application configuration
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/backend-configmap.yaml
+        src: backend-configmap.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
     - name: Create a private SSH Key secret for GitLab access
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/gitlab-private-key-secret.yaml
+        src: gitlab-private-key-secret.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
     - name: Create a ConfigMap of known hosts for GitLab access
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/known_hosts_config.yaml
+        src: known_hosts_config.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
     - name: Deploy backend application as a Deployment
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/backend.yaml
+        src: backend.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
@@ -107,7 +107,7 @@
   tasks:
     - name: Deploy frontend application as a Deployment
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/frontend.yaml
+        src: frontend.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
@@ -118,7 +118,7 @@
   tasks:
     - name: Deploy Ingress for Frontend
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/ingress-frontend.yaml
+        src: ingress-frontend.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ sim_app_namespace }}"
@@ -129,7 +129,7 @@
   tasks:
     - name: Deploy Ingress for API
       kubernetes.core.k8s:
-        src: /work/proj/github/sim-platform/ingress-api.yaml
+        src: ingress-api.yaml
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace:  "{{ sim_app_namespace }}"

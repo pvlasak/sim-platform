@@ -16,7 +16,7 @@ spec:
         spec:
           containers:
           - name: backend
-            image: public.ecr.aws/f6c0q2k2/sim-app-backend:1.0.0
+            image: 086241318794.dkr.ecr.eu-central-1.amazonaws.com/sim-app-backend:1.0.0
             imagePullPolicy: Always
             ports:
             - containerPort: 8000
