@@ -92,7 +92,10 @@ pipeline {
                         remote.user = user
                         remote.identityFile = keyfile
                         withCredentials([usernamePassword(credentialsId: 'aws-ecr-simapp-credentials', usernameVariable: 'ECR_USER', passwordVariable: 'ECR_PASS')]) {
-                            sshCommand remote: remote, command: 'ansible-playbook ansible-playbook-sim-app.yaml -e "ecr_password=${ECR_PASS} kubeconfig_path=/root/kubeconfig sim_app_namespace=sim-app"'                           
+                            sshCommand remote: remote, command: """
+                            ansible-playbook ansible-playbook-sim-app.yaml \
+                            -e "ecr_password=${ECR_PASS} kubeconfig_path=/root/kubeconfig sim_app_namespace=sim-app"
+                            """                           
                         }
                     }
                 }
