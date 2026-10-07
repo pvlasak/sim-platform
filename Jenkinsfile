@@ -42,12 +42,16 @@ pipeline {
             }
         }
         stage('provisioning eks cluster on AWS') {
+            environment {
+                AWS_ACCESS_KEY_ID = credentials('jenkins-user-aws-access-key-id')
+                AWS_SECRET_ACCESS_KEY = credentials('jenkins-user-aws-secret-access-key')
+            }
             steps {
                 script {
                     echo "provisioning eks cluster on AWS..."
                     dir('terraform') {
                         sh "terraform init"
-                        sh "terraform plan"
+                        sh "terraform apply --auto-approve"
                         sh "aws eks update-kubeconfig --name sim-app-cluster --region eu-central-1 --kubeconfig ~/.kube/sim-eks-kubeconfig"
                         sh "chmod 400 ~/.kube/sim-eks-kubeconfig"
                     }
@@ -57,9 +61,11 @@ pipeline {
         stage('deploy app') {
             steps {
                 script {
+                    echo "Waiting for AWS EKS cluster to be provisioned..."
+                    sleep(time: 90, unit: "SECONDS")
                     echo "deploying app..."
-                    }                
-                }
+                }                
             }
         }
     }
+}

@@ -137,3 +137,7 @@ kubectl apply -f frontend-ingress.yaml
 - Ansible Playbook can be started as *ansible-playbook ansible-playbook-sim-app.yaml*
 - To connect to EKS cluster from localhost an environmental variable KUBECONFIG has to be exported as *export KUBECONFIG={kubeconfig_path}* and kubectl commands can be used subsequently. 
 
+#### 3. CICD in Jenkins
+- installed AWS CLI into jenkins container 
+- AWS credentials for jenkins user available in `/var/jenkins_home/.aws`
+- 
