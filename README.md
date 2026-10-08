@@ -8,7 +8,7 @@ Engineer works locally
 - same commit hash is stored in MongoDB with the job
 - cluster pulls exactly that commit
 - results are linked to that exact commit
-- anyone can reproduce the run rom the same commit hash
+- anyone can reproduce the run from the same commit hash
 
 
 ## Project goals:
@@ -26,34 +26,19 @@ When an engineer starts a simulation, the platform automatically provisions an A
 After simulation completes, output files are downloaded to S3, key metrics are parsed and stored in MongoDB, and everything is linked back to the original GitLab commit. Six months later anyone can answer — which model version produced which result.
   
 
+## Deploy application on AWS EKS Cluster
 
-## Prerequisites
-
-Install these once if you don't have them:
-
-| Tool | Version | Install |
-|------|---------|---------|
-| Node.js | 18+ | https://nodejs.org |
-| Python | 3.11+ | https://python.org |
-| MongoDB Community | 7.0 | https://www.mongodb.com/try/download/community |
-
-- Install Docker
-- Install Docker Compose
-- Configure AWS API Credentials - AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-- Install eksctl
-- Install kubectl 
-
-## Deploy application on EKS Cluster
-- `mongo-secret.yaml` not needed. 
-
-### Manual Application Deployment
+### 1. Manual Application Deployment
 
 #### Prerequisites
 
-- Configure AWS API Credentials - AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-- Install eksctl
-- Install kubectl
-- Install helm 
+**Installation**
+- AWS CLI installed - *aws configure* command sets access credentials for AWS user
+- docker daemon
+- eksctl
+- kubectl
+- helm 
+- node and npm
 
 #### 1. Create cluster with OIDC enabled
 eksctl create cluster \
@@ -107,15 +92,31 @@ kubectl apply -f frontend.yaml
 kubectl apply -f api-ingress.yaml
 kubectl apply -f frontend-ingress.yaml
 
-## Automated Application Deployment
+### 2. Automated Application Deployment
+- there are two main parts:
+  A. Terraform - script `main.tf` provisioning AWS EKS cluster
+  started as *terraform init* + *terraform apply*
+  B. Ansible - playbook configuring EKS cluster and setting up the application. 
+  *ansible-playbook ansible-playbook-sim-app.yaml*
+
+- terraform script and ansible playbook are started subsequently once after each other. 
 
 #### Prerequisites
-- Configure AWS Credentials
-- install terraform
-- Install ansible
-- Install kubectl
-- Install AWS CLI
-- Install aws-iam-authenticator
+
+**Installation**
+ - AWS CLI installed - *aws configure* command sets access credentials for AWS user
+- docker daemon
+- kubectl
+- helm 
+- node and npm
+- terraform
+- ansible 
+- python3
+- python3-boto3
+- python3-botocore
+- python3-kubernetes
+- python3-yaml
+- python3-jsonpatch
   
 #### 1. Infrastructure Provisioning using Terraform 
   - Terraform script provisioning EKS cluster on AWS is available in the repository.
@@ -126,7 +127,7 @@ kubectl apply -f frontend-ingress.yaml
     3. public_subnets = ["", "", ""]
     4. instance_types = [""]
     
-  - Terraform is initialiazed and provisioner is installed by *terraform init*
+  - Terraform is initialized and provisioner is installed by *terraform init*
   - Terraform configuration gets executed by command: *terraform apply*
   - Terraform Infrastructure is destroyed by running a command *terraform destroy*
 
@@ -137,7 +138,38 @@ kubectl apply -f frontend-ingress.yaml
 - Ansible Playbook can be started as *ansible-playbook ansible-playbook-sim-app.yaml*
 - To connect to EKS cluster from localhost an environmental variable KUBECONFIG has to be exported as *export KUBECONFIG={kubeconfig_path}* and kubectl commands can be used subsequently. 
 
-#### 3. CICD in Jenkins
-- installed AWS CLI into jenkins container 
-- AWS credentials for jenkins user available in `/var/jenkins_home/.aws`
-- 
+### 3. CICD in Jenkins
+- Jenkinsfile runs the CICD pipeline where infrastructure is provisioned and application is configured by Ansible playbook running on dedicated server. 
+- kubeconfig file is obtained by AWS CLI command and copied onto ansible server 
+
+#### Prerequisites
+
+- Ansible server is running as virtual Ubuntu server, for example on Digital Ocean droplet
+- Public IP Address of Ansible Server is defined in the `Jenkinsfile` as environmental variable.
+- Jenkins is running as docker container on a Digital Ocean Droplet. 
+- Firewall rules are adjusted to allow Jenkins server to connect via SSH.
+- AWS ECR private repository credentials are available to Jenkins, password is valid 12 hours only.
+- private SSH key to access the Ansible server is available to Jenkins 
+
+**Installation Ansible Server**
+- AWS CLI - *aws configure* command sets access credentials for AWS user
+- docker daemon
+- kubectl in `/usr/local/bin`
+- helm 
+- terraform
+- ansible 
+- python3
+- python3-boto3
+- python3-botocore
+- python3-kubernetes
+- python3-yaml
+- python3-jsonpatch
+- all necessary secret YAML files for MongoDB and GitLab are copied onto Ansible server
+
+**Installation Jenkins Container**
+- AWS CLI 
+- node and npm
+- docker daemon
+- terraform
+
+
