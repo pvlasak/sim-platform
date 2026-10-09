@@ -98,6 +98,7 @@ kubectl apply -f frontend-ingress.yaml
   A. Terraform - script `main.tf` provisioning AWS EKS cluster
   started as *terraform init* + *terraform apply*
   B. Ansible - playbook configuring EKS cluster and setting up the application. 
+  - DNS name of AWS Loadbalancer must be updated in `api-ingress.yaml` and `frontend-ingress.yaml`
   *ansible-playbook ansible-playbook-sim-app.yaml*
 
 - terraform script and ansible playbook are started subsequently once after each other. 
