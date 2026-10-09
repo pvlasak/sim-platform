@@ -27,6 +27,7 @@ After simulation completes, output files are downloaded to S3, key metrics are p
   
 
 ## Deploy application on AWS EKS Cluster
+<img width="3200" height="2000" alt="sim-platform-architecture" src="https://github.com/user-attachments/assets/a18efff1-cdaf-4324-9b6e-1fec1d772039" />
 
 ### 1. Manual Application Deployment
 
