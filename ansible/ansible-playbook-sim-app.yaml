@@ -29,11 +29,9 @@
 
     - name: Get Loadbalancer DNS Hostname
       ansible.builtin.command:
-        cmd: kubectl get svc -n ingress-nginx ingress-nginx-controller -o json
-      environment:
-        KUBECONFIG: "{{ kubeconfig_path }}"
-      register: nginx_ingress_svc_output
-    - debug: msg="{{ (nginx_ingress_svc_output.stdout | from_json).status.loadBalancer.ingress[0].hostname }}"
+        cmd: kubectl get svc -n ingress-nginx ingress-nginx-controller -o json 
+      register: ingress_svc_output
+    - debug: msg="{{ (ingress_svc_output.stdout | from_json).status.loadBalancer.ingress[0].hostname }}"
     - name: Create a k8s namespace for the application
       kubernetes.core.k8s:
         api_version: v1
@@ -73,6 +71,10 @@
         namespace: "{{ sim_app_namespace }}"
 - name: Deploy Backend Application
   hosts: localhost
+  environment:
+    ECR_SERVER: "{{ ecr_server }}"
+    ECR_BACKEND_REPO: "{{ ecr_backend_repo }}"
+    IMAGE_VERSION: "{{ image_version }}"
   vars_files:
     - ansible-vars
   tasks:
@@ -96,50 +98,46 @@
         namespace: "{{ sim_app_namespace }}"
     - name: Docker Login
       community.docker.docker_login:
-        registry_url: 086241318794.dkr.ecr.eu-central-1.amazonaws.com
+        registry_url: "{{ ecr_server }}"
         username: AWS
-        password: "{{ecr_password}}"
+        password: "{{ ecr_password }}"
     - name: Deploy backend application as a Deployment
-      kubernetes.core.k8s:
-        src: backend.yaml
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: "{{ sim_app_namespace }}"
+      ansible.builtin.shell:
+        cmd: "envsubst < backend.yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -n {{ sim_app_namespace }} -f -"
 - name: Deploy Frontend Application
   hosts: localhost
+  environment:
+    ECR_SERVER: "{{ ecr_server }}"
+    ECR_FRONTEND_REPO: "{{ ecr_frontend_repo }}"
+    IMAGE_VERSION: "{{ image_version }}"
   vars_files:
     - ansible-vars
   tasks:
     - name: Docker Login
       community.docker.docker_login:
-        registry_url: 086241318794.dkr.ecr.eu-central-1.amazonaws.com
+        registry_url: "{{ ecr_server }}"
         username: AWS
-        password: "{{ecr_password}}"
+        password: "{{ ecr_password }}"
     - name: Deploy frontend application as a Deployment
-      kubernetes.core.k8s:
-        src: frontend.yaml
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: "{{ sim_app_namespace }}"
+      ansible.builtin.shell:
+        cmd: "envsubst < frontend.yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -n {{ sim_app_namespace }} -f -"
 - name: Deploy Ingress Rules
   hosts: localhost
+  environment:
+    LOADBALANCER_DNS: "{{ (ingress_svc_output.stdout | from_json).status.loadBalancer.ingress[0].hostname }}"
   vars_files:
     - ansible-vars
   tasks:
     - name: Deploy Ingress for Frontend
-      kubernetes.core.k8s:
-        src: ingress-frontend.yaml
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: "{{ sim_app_namespace }}"
+      ansible.builtin.shell:
+        cmd: "envsubst < ingress-frontend.yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -n {{ sim_app_namespace }} -f -"
 - name: Deploy Ingress for Backend Application
   hosts: localhost
+  environment:
+    LOADBALANCER_DNS: "{{ (ingress_svc_output.stdout | from_json).status.loadBalancer.ingress[0].hostname }}"
   vars_files:
     - ansible-vars
   tasks:
     - name: Deploy Ingress for API
-      kubernetes.core.k8s:
-        src: ingress-api.yaml
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace:  "{{ sim_app_namespace }}"
+      ansible.builtin.shell:
+        cmd: "envsubst < ingress-api.yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -n {{ sim_app_namespace }} -f -"

@@ -1,3 +1,7 @@
 kubeconfig_path: /work/proj/github/sim-platform/kubeconfig-eks-cluster/eks-kubeconfig
 sim_app_namespace: sim-app
-ecr_password:
+ecr_password: 
+ecr_server: 086241318794.dkr.ecr.eu-central-1.amazonaws.com
+ecr_backend_repo: sim-app-backend
+ecr_frontend_repo: sim-app-frontend
+image_version: 1.0.0
