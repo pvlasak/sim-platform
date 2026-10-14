@@ -28,6 +28,8 @@
     - debug: msg="{{ helm_install_result }}"
 
     - name: Get Loadbalancer DNS Hostname
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
       ansible.builtin.command:
         cmd: kubectl get svc -n ingress-nginx ingress-nginx-controller -o json 
       register: ingress_svc_output

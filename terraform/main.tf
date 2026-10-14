@@ -99,7 +99,35 @@ module "eks" {
       max_size     = 2
       desired_size = 2
     }
+  } 
+  enable_cluster_creator_admin_permissions = false
+
+  access_entries = {
+    admin = {
+      principal_arn = "arn:aws:iam::086241318794:user/admin"
+      policy_associations = {
+        admin = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
+    jenkins = {
+      principal_arn = "arn:aws:iam::086241318794:user/jenkins"
+      policy_associations = {
+        admin = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
   }
+
+  kms_key_administrators = [
+    "arn:aws:iam::086241318794:user/admin",
+    "arn:aws:iam::086241318794:user/jenkins",
+  ]
+
 
   tags = {
 	environment = "dev"
