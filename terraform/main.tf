@@ -27,11 +27,11 @@ variable instance_types {
 data "aws_availability_zones" "azs" {}
 
 
-module "myapp-vpc" {
+module "sim-app-vpc" {
   source = "terraform-aws-modules/vpc/aws"
   version = "6.6.1"
 
-  name = "myapp-vpc"
+  name = "sim-app-vpc"
   cidr = var.vpc_cidr_block
 
   azs = data.aws_availability_zones.azs.names
@@ -50,7 +50,7 @@ module "myapp-vpc" {
     "kubernetes.io/role/elb"                    = "1"
   }
   private_subnet_tags = {
-    "kubernetes.io/cluster/myapp-eks-cluster" = "shared"
+    "kubernetes.io/cluster/sim-app-cluster" = "shared"
     "kubernetes.io/role/internal-elb"           = "1"
   }
 }
@@ -85,8 +85,8 @@ module "eks" {
   endpoint_public_access = true
   enable_cluster_creator_admin_permissions = true
 
-  vpc_id                   =  module.myapp-vpc.vpc_id
-  subnet_ids               =  module.myapp-vpc.private_subnets
+  vpc_id                   =  module.sim-app-vpc.vpc_id
+  subnet_ids               =  module.sim-app-vpc.private_subnets
 
   # EKS Managed Node Group(s)
   eks_managed_node_groups = {
