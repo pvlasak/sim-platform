@@ -16,7 +16,7 @@ spec:
         spec:
           containers:
           - name: frontend
-            image: $ECR_SERVER/$ECR_FRONTEND_REPO:$IMAGE_VERSION
+            image: "{{ ecr_server }}/{{ ecr_frontend_repo }}:{{ image_version }}"
             imagePullPolicy: Always
             ports:
             - containerPort: 80
