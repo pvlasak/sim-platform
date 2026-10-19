@@ -74,6 +74,7 @@ pipeline {
                     echo "copying Ansible files to ansible server..."
                     sshagent(credentials: ['ansible-server-key']) {
                         sh "scp -o StrictHostKeyChecking=no ansible/* root@${ANSIBLE_SERVER}:/root/"
+                        sh "scp -o StrictHostKeyChecking=no *.yaml root@${ANSIBLE_SERVER}:/root/"
                         sh "scp -o StrictHostKeyChecking=no ${env.HOME}/sim-eks-kubeconfig root@${ANSIBLE_SERVER}:/root/kubeconfig"
                     }
                 }

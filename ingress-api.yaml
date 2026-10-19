@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: "{{loadbalancer_hostname}}"
+    - host: "{{loadbalancer_hostname.stdout}}"
       http:
         paths:
           - path: /api(/|$)(.*)
