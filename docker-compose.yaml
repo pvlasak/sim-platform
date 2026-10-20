@@ -1,7 +1,7 @@
 version: '3'
 services: 
   backend:
-    image: sim-app-backend:1.0
+    image: sim-app-backend:1.0.0
     ports:
       - 8000:8000
     environment:
@@ -16,9 +16,17 @@ services:
       - GIT_USER_NAME=simflow
       - GIT_USER_EMAIL=simflow@example.com
   frontend:
-    image: sim-app-frontend:1.0
-    ports: 
+    image: sim-app-frontend:1.0.0
+    # no "ports": reached only through the gateway
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
       - 8080:80
+    volumes:
+      - ./gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
   mongodb:
     image: mongo
     ports: 
