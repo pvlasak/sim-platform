@@ -21,3 +21,4 @@ terraform/*.tfvars
 
 venv/
 kubeconfig-eks-cluster/*
+CLAUDE.md
