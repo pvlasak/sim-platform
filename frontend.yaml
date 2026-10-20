@@ -16,7 +16,7 @@ spec:
         spec:
           containers:
           - name: frontend
-            image: public.ecr.aws/f6c0q2k2/sim-app-frontend:1.1.0
+            image: "{{ ecr_server }}/{{ ecr_frontend_repo }}:{{ image_version }}"
             imagePullPolicy: Always
             ports:
             - containerPort: 80

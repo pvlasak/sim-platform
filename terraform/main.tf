@@ -1,20 +1,37 @@
+terraform {
+  required_version = ">= 0.12"
+  backend "s3" {
+    bucket = "terraform-state-sim-app"
+    key    = "sim-app/terraform.tfstate"
+    region = "eu-central-1"
+  }
+}
+
 provider "aws" {
     region = "eu-central-1"
 }
 
-variable vpc_cidr_block {}
-variable private_subnets {}
-variable public_subnets {}
-variable instance_types {}
+variable vpc_cidr_block {
+  default = "10.0.0.0/16"
+}
+variable private_subnets {
+  default = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+}
+variable public_subnets {
+  default = ["10.0.10.0/24", "10.0.11.0/24", "10.0.12.0/24"]
+}
+variable instance_types {
+  default = ["t2.large"]
+}
 
 data "aws_availability_zones" "azs" {}
 
 
-module "myapp-vpc" {
+module "sim-app-vpc" {
   source = "terraform-aws-modules/vpc/aws"
   version = "6.6.1"
 
-  name = "myapp-vpc"
+  name = "sim-app-vpc"
   cidr = var.vpc_cidr_block
 
   azs = data.aws_availability_zones.azs.names
@@ -33,7 +50,7 @@ module "myapp-vpc" {
     "kubernetes.io/role/elb"                    = "1"
   }
   private_subnet_tags = {
-    "kubernetes.io/cluster/myapp-eks-cluster" = "shared"
+    "kubernetes.io/cluster/sim-app-cluster" = "shared"
     "kubernetes.io/role/internal-elb"           = "1"
   }
 }
@@ -68,8 +85,8 @@ module "eks" {
   endpoint_public_access = true
   enable_cluster_creator_admin_permissions = true
 
-  vpc_id                   =  module.myapp-vpc.vpc_id
-  subnet_ids               =  module.myapp-vpc.private_subnets
+  vpc_id                   =  module.sim-app-vpc.vpc_id
+  subnet_ids               =  module.sim-app-vpc.private_subnets
 
   # EKS Managed Node Group(s)
   eks_managed_node_groups = {
@@ -82,7 +99,8 @@ module "eks" {
       max_size     = 2
       desired_size = 2
     }
-  }
+  } 
+
 
   tags = {
 	environment = "dev"
