@@ -1,9 +1,10 @@
 # backend/app/database.py
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
-#from dotenv import load_dotenv
 
-#load_dotenv()   # reads backend/.env when running locally
+# dotenv is used when running locally, without docker
+#from dotenv import load_dotenv
+#load_dotenv()
 
 _client = None
 
@@ -11,6 +12,9 @@ async def connect_db():
     global _client
     username=os.getenv("MONGODB_USER")
     password=os.getenv("MONGODB_PASSWORD")
+    # deployment on localhost withoud docker images
+    #url = os.getenv("MONGODB_URL")
+    # deployment using docker image
     url = os.getenv("MONGODB_URL", f"mongodb://{username}:{password}@mongodb:27017")
     _client = AsyncIOMotorClient(url)
     print(f"MongoDB connected: {url}")

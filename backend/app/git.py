@@ -19,13 +19,13 @@ import re
 
 #load_dotenv()
 
-APP_DIR = os.getenv("APP_DIR",  "/home/app/")
-GIT_REPO_NAME = os.getenv("GIT_REPO_NAME", "model-repository")
-GIT_REPO_PATH  = os.getenv("GIT_REPO_PATH",  "/home/app/model-repository")
-GIT_REMOTE_URL = os.getenv("GIT_REMOTE_URL", "git@gitlab.com:pvlasak-group/model-repository.git")
-GIT_BRANCH     = os.getenv("GIT_BRANCH",     "main")
-GIT_USER_NAME  = os.getenv("GIT_USER_NAME",  "SimFlow Bot")
-GIT_USER_EMAIL = os.getenv("GIT_USER_EMAIL", "simflow@example.com")
+APP_DIR = os.getenv("APP_DIR", default=None)
+GIT_REPO_NAME = os.getenv("GIT_REPO_NAME", default=None)
+GIT_REPO_PATH  = os.getenv("GIT_REPO_PATH", default=None)
+GIT_REMOTE_URL = os.getenv("GIT_REMOTE_URL", default=None)
+GIT_BRANCH     = os.getenv("GIT_BRANCH",  default=None)
+GIT_USER_NAME  = os.getenv("GIT_USER_NAME",  default=None)
+GIT_USER_EMAIL = os.getenv("GIT_USER_EMAIL", default=None)
 
 def sanitize_project_name(s: str) -> str:
     """Strip anything that isn't alphanumeric/underscore/hyphen, to keep
