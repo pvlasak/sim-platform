@@ -4,12 +4,11 @@ frontend/node_modules/
 frontend/dist/
 backend/app/__pycache__/
 backend/app/routers/__pycache__
-gitlab-private-key-secret.yaml
-mongo-secret.yaml
-mongodb-helm-values.yaml
+kubernetes/gitlab-private-key-secret.yaml
+kubernetes/mongo-secret.yaml
+kubernetes/mongodb-helm-values.yaml
 
 # local .terraform dir
-.terraform/*
 terraform/.terraform/*
 
 # tf state files
