@@ -45,6 +45,7 @@ export const useJobStore = defineStore('jobs', () => {
       const newModel = await apiCommitModel({
         file:         payload.file,        // File object — sent as multipart
         project:      payload.project,
+        description:  payload.description,
         commitMsg:    payload.commitMsg,
         committedBy:  'P.Vlasak',       // later: from auth session
       })

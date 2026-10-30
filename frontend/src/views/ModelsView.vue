@@ -33,6 +33,11 @@
           </div>
 
           <div class="field">
+            <div class="label">Model Description </div>
+            <input v-model="form.description" class="input" type="text" placeholder="Describe the model" />
+          </div>
+
+          <div class="field">
             <div class="label">Commit Message</div>
             <input v-model="form.commitMsg" class="input" type="text" placeholder="e.g. Update barrier stiffness v4.2" />
           </div>
@@ -166,6 +171,7 @@ async function commit() {
     await jobStore.commitModel({
       file:      fileObject.value,
       project:   form.project || 'default-project',
+      description: form.description,
       commitMsg: form.commitMsg,
     })
     committed.value  = true

@@ -1,7 +1,17 @@
 version: '3'
 services: 
+  minio:
+    image: myminio:latest 
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    environment:
+      - MINIO_ROOT_USER=minio-user
+      - MINIO_ROOT_PASSWORD=minio-pass   
+    volumes:
+      - minio-data:/data
   backend:
-    image: sim-app-backend:1.0.0
+    image: sim-app-backend:1.0.1
     ports:
       - 8000:8000
     environment:
@@ -15,8 +25,11 @@ services:
       - GIT_BRANCH=main
       - GIT_USER_NAME=simflow
       - GIT_USER_EMAIL=simflow@example.com
+      - S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minio-user
+      - AWS_SECRET_ACCESS_KEY=minio-pass
   frontend:
-    image: sim-app-frontend:1.0.0
+    image: sim-app-frontend:1.0.1
     # no "ports": reached only through the gateway
   gateway:
     image: nginx:1.27-alpine
@@ -50,4 +63,6 @@ services:
       - ME_CONFIG_MONGODB_URL=mongodb://mongodb:27017
 volumes:
   mongodb_data:
+    driver: local
+  minio-data:
     driver: local

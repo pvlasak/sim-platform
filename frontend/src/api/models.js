@@ -32,6 +32,7 @@ export async function commitModel(payload) {
 
   // Text fields sent alongside the file
   form.append('project',      payload.project)
+  form.append('description', payload.description)
   form.append('commit_msg',   payload.commitMsg)
   form.append('committed_by', payload.committedBy)
 

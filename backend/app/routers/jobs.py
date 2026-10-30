@@ -2,12 +2,47 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime, timezone
 from ..database import jobs_col
 import uuid
+from uuid import UUID
+
 
 router = APIRouter()
+
+class CheckerRun(BaseModel):
+    checker_run_id: UUID
+    model_id: UUID
+    revision_id: str
+    status: Literal["QUEUED", "RUNNING", "PASSED", "FAILED"]
+    result_s3_uri: str | None = None
+
+class Job(BaseModel):
+    job_id: UUID
+    model_id: UUID
+    revision_id: str
+    status: Literal[
+        "PROVISIONING", "QUEUED", "RUNNING",
+        "COMPLETED", "FAILED", "FINALIZING", "ARCHIVED"
+    ]
+
+class CheckerRunResult(BaseModel):
+    checker_run_id: UUID
+    model_id: UUID
+    revision_id: str
+    passed: bool
+    findings_s3_uri: str | None = None
+    logs_s3_uri: str | None = None
+
+class JobResult(BaseModel):
+    job_id: UUID
+    model_id: UUID
+    revision_id: str
+    status: Literal["COMPLETED", "FAILED"]
+    results_s3_uri: str
+    logs_s3_uri: str | None = None
+
 
 # ── Request schema ─────────────────────────────────────────────────
 class JobRequest(BaseModel):
