@@ -39,11 +39,12 @@ class ModelRevision(BaseModel):
     file_name: str
     commit_msg: str
     committed_by: str
-    committed_at: datetime
+    committed_at: datetime | None = None
     package_s3_key: str | None = None
     package_s3_uri: str
     check_status: Literal["PENDING", "CHECKING", "READY", "NEEDS_FIX"]
-    git_pushed: bool | None = None
+    git_pushed: bool | None = None,
+    git_commit_id: str | None = None,
     git_error: str | None = None
 
 class Model(BaseModel):
@@ -73,12 +74,13 @@ def create_commit_manifest(ModelRevision):
         "check_status": ModelRevision.check_status,
     }
     # write YAML manifest file to temp directory
-    manifest_name = f"commit_manifest_{ModelRevision.revision_id}.yaml"
+    manifest_name = f"{ModelRevision.file_name}_rev-{ModelRevision.revision_id}_commit.yaml"
     manifest_path = os.path.join(TEMP_DIR, manifest_name)
     with open(manifest_path, "w") as f:
         import yaml
         yaml.dump(commit_manifest, f)   
     return (manifest_name, manifest_path)
+
 
 async def upload_to_s3(file_obj, bucket: str, s3_key: str) -> bool:
     """ Upload the file to S3 storage. """
@@ -88,8 +90,6 @@ async def upload_to_s3(file_obj, bucket: str, s3_key: str) -> bool:
         logging.error(e)
         return False
     return True
-
-
 
 
 async def save_model_to_mongo(model: Model):
@@ -116,6 +116,13 @@ async def update_model_in_mongo(model: Model):
     col.update_one({"_id": str(model.model_id)}, {"$set": doc})
 
 
+def run_checker_on_model(model_id: str, revision_id: int) -> None:
+    """
+    Run the checker script on the model revision.
+    This is a placeholder for the actual checker logic.
+    """
+    
+    
 @router.get("")
 async def get_models():
     """Return all committed models, newest first."""
@@ -152,6 +159,7 @@ async def create_new_model(
             package_s3_uri = f"s3://{S3_BUCKET_NAME}/{model_id}/revisions/{revision_id}/{file.filename}",
             check_status = "PENDING",
             git_pushed = None,
+            git_commit_id = None,
             git_error = None
             )
     # Upload Model Package to S3 Storage
@@ -161,6 +169,7 @@ async def create_new_model(
         git_result = await push_model_to_git(
             file_path  = manifest_file_path,
             file_name  = manifest_filename,
+            revision_id = revision_id,
             model_id   = model_id,
             project    = project,
             commit_msg = commit_msg,
@@ -168,6 +177,7 @@ async def create_new_model(
         )
         # Update Git Push Status  
         revision.git_pushed = git_result.get("success", False)
+        revision.git_commit_id = git_result.get("commit_id")
         revision.git_error  = git_result.get("error")
         # Add revision to model
         model.revisions.append(revision)
@@ -178,10 +188,10 @@ async def create_new_model(
         logging.error("Model upload to S3 was NOT successfull: %s", str(file.filename))
         raise HTTPException(status_code=500, detail="Model upload failed")
     os.remove(manifest_file_path)
-    # Convert pydantic model object to dictionary and replace model_id with id
-    model_dict = model.model_dump(mode="json")
-    model_dict["id"] = str(model_dict.pop("model_id"))
-    return model_dict
+    # Create response for frontend.
+    response = model.model_dump(mode="json")
+    response["id"] = response.pop("model_id")
+    return response
 
 @router.post("/{model_id}/revisions")
 async def create_new_model_revision(
@@ -212,6 +222,7 @@ async def create_new_model_revision(
             package_s3_uri = f"s3://{S3_BUCKET_NAME}/{model_id}/revisions/{new_revision_id}/{file.filename}",
             check_status = "PENDING",   
             git_pushed = None,
+            git_commit_id = None,
             git_error = None
             )
     
@@ -229,6 +240,7 @@ async def create_new_model_revision(
         )
         # Update Git status
         new_revision.git_pushed = git_result.get("success", False)
+        new_revision.git_commit_id = git_result.get("commit_id")
         new_revision.git_error  = git_result.get("error")
         # Add model revision to a list of revisions 
         existing_model.revisions.append(new_revision)
@@ -238,12 +250,10 @@ async def create_new_model_revision(
         logging.error("Model upload to S3 was NOT successfull: %s", str(file.filename))
         raise HTTPException(status_code=500, detail="Model upload failed")
     os.remove(manifest_file_path)
-   
-    # Convert pydantic model object to dictionary and replace model_id with id
-    existing_model_dict = existing_model.model_dump(mode="json")
-    existing_model_dict["id"] = str(existing_model_dict.pop("model_id"))
-    return existing_model_dict
-
+    # Create response for frontend.
+    response = existing_model.model_dump(mode="json")
+    response["id"] = response.pop("model_id")
+    return response
 
 
 @router.get("/{model_id}")

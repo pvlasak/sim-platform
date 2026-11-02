@@ -14,7 +14,7 @@ router = APIRouter()
 class CheckerRun(BaseModel):
     checker_run_id: UUID
     model_id: UUID
-    revision_id: str
+    revision_id: int
     status: Literal["QUEUED", "RUNNING", "PASSED", "FAILED"]
     result_s3_uri: str | None = None
 
@@ -26,23 +26,6 @@ class Job(BaseModel):
         "PROVISIONING", "QUEUED", "RUNNING",
         "COMPLETED", "FAILED", "FINALIZING", "ARCHIVED"
     ]
-
-class CheckerRunResult(BaseModel):
-    checker_run_id: UUID
-    model_id: UUID
-    revision_id: str
-    passed: bool
-    findings_s3_uri: str | None = None
-    logs_s3_uri: str | None = None
-
-class JobResult(BaseModel):
-    job_id: UUID
-    model_id: UUID
-    revision_id: str
-    status: Literal["COMPLETED", "FAILED"]
-    results_s3_uri: str
-    logs_s3_uri: str | None = None
-
 
 # ── Request schema ─────────────────────────────────────────────────
 class JobRequest(BaseModel):
@@ -100,17 +83,6 @@ async def create_job(payload: JobRequest):
     }
     await col.insert_one(job)
     return _clean(job)
-
-
-@router.patch("/{job_id}")
-async def update_job(job_id: str, body: dict):
-    """
-    Called by Jenkins to update job status and progress.
-    Body can contain any subset of: status, progress, stopped_at, cost_actual
-    """
-    col = jobs_col()
-    await col.update_one({"_id": job_id}, {"$set": body})
-    return {"ok": True}
 
 
 @router.get("/{job_id}")

@@ -52,6 +52,7 @@ async def push_model_to_git(
     file_path:  str,
     file_name:  str,
     model_id:   str,
+    revision_id: int,
     project:    str,
     commit_msg: str,
     author:     str,
@@ -89,7 +90,7 @@ async def push_model_to_git(
 
     # Build a unique, sanitized directory name at repo root: <model_id>_<project>/
     safe_file_name = os.path.basename(file_name)  # strip any path components client sent
-    relative_dir   = f"{model_id}_{sanitize_project_name(project)}"
+    relative_dir   = f"{model_id}_{sanitize_project_name(project)}/revisions/{revision_id}"
     target_dir     = os.path.join(GIT_REPO_PATH, relative_dir)
     os.makedirs(target_dir, exist_ok=True)
 

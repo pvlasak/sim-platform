@@ -94,26 +94,26 @@
             <tbody>
               <tr v-for="model in jobStore.models" :key="model.id">
                 <td>
-                  <div class="model-name">{{ model.name }}</div>
-                  <div class="model-meta">{{ model.project }} · {{ formatDate(model.committed_at) }}</div>
+                  <div class="model-name">{{ latestRevision(model)?.file_name }}</div>
+                  <div class="model-meta">{{ model.project }} · {{ formatDate(latestRevision(model)?.committed_at) }}</div>
                 </td>
                 <td>
-                  <div class="commit-id">{{ model.commit_id }}</div>
-                  <div class="commit-msg-short" :title="model.commit_msg">{{ model.commit_msg }}</div>
+                  <div class="commit-id">{{ latestRevision(model)?.git_commit_id }}</div>
+                  <div class="commit-msg-short" :title="latestRevision(model)?.commit_msg">{{ latestRevision(model)?.commit_msg }}</div>
                 </td>
                 <td>
-                  <div class="check-badge" :class="model.check_status">
-                    <span v-if="model.check_status === 'passed'">✓ Passed</span>
-                    <span v-else-if="model.check_status === 'failed'">✗ Failed</span>
-                    <span v-else-if="model.check_status === 'running'"><span class="spin">⟳</span> Running</span>
+                  <div class="check-badge" :class="latestRevision(model)?.check_status">
+                    <span v-if="latestRevision(model)?.check_status === 'passed'">✓ Passed</span>
+                    <span v-else-if="latestRevision(model)?.check_status === 'failed'">✗ Failed</span>
+                    <span v-else-if="latestRevision(model)?.check_status === 'running'"><span class="spin">⟳</span> Running</span>
                     <span v-else>— Pending</span>
                   </div>
                 </td>
                 <td>
                   <button
                     class="btn-sim"
-                    :disabled="model.check_status !== 'passed'"
-                    :title="model.check_status !== 'passed' ? 'Model check must pass first' : 'Start simulation'"
+                    :disabled="latestRevision(model)?.check_status !== 'passed'"
+                    :title="latestRevision(model)?.check_status !== 'passed' ? 'Model check must pass first' : 'Start simulation'"
                     @click="$router.push(`/job-start/${model.id}`)"
                   >
                     <svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -146,6 +146,10 @@ const committed   = ref(false)
 const commitError = ref(null)
 
 const form = reactive({ project: '', commitMsg: '' })
+
+function latestRevision(model) {
+  return model.revisions?.at(-1)
+}
 
 function onDrop(e) {
   dragging.value = false
