@@ -1,5 +1,7 @@
 # backend/app/routers/models.py
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from asyncio import sleep
+
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from ..database import models_col
@@ -113,14 +115,28 @@ async def update_model_in_mongo(model: Model):
         "number_of_revisions": model.number_of_revisions,
         "revisions": [rev.dict() for rev in model.revisions],
     }
-    col.update_one({"_id": str(model.model_id)}, {"$set": doc})
+    await col.update_one({"_id": str(model.model_id)}, {"$set": doc})
 
+async def update_check_status(model_id: str, revision_id: int, new_status: str):
+    """Update the check_status of a specific model revision in MongoDB."""
+    col = models_col()
+    result = await col.update_one(
+    {
+        "_id": model_id,
+        "revisions.revision_id": revision_id,
+    },
+    {"$set": {"revisions.$.check_status": new_status}},
+    )
+    if result.matched_count != 1:
+        raise HTTPException(
+            status_code=409,
+            detail="Revision not found.",
+    )
 
-def run_checker_on_model(model_id: str, revision_id: int) -> None:
-    """
-    Run the checker script on the model revision.
-    This is a placeholder for the actual checker logic.
-    """
+async def run_check(model_id: str, revision_id: int) -> None:
+    await sleep(60)
+    result = "READY" if uuid.uuid4().int % 2 == 0 else "NEEDS_FIX"
+    await update_check_status(model_id, revision_id, result)
     
     
 @router.get("")
@@ -263,3 +279,20 @@ async def get_model(model_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Model not found")
     return _clean(doc)
+
+@router.post("/{model_id}/revisions/{revision_id}/check")
+async def start_check(
+    model_id: str,
+    revision_id: int,
+    background_tasks: BackgroundTasks,
+):
+    await update_check_status(model_id, revision_id, "CHECKING")
+    background_tasks.add_task(run_check, model_id, revision_id)
+
+    return {
+        "model_id": model_id,
+        "revision_id": revision_id,
+        "check_status": "CHECKING",
+    }
+
+  

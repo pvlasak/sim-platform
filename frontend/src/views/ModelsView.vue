@@ -102,18 +102,31 @@
                   <div class="commit-msg-short" :title="latestRevision(model)?.commit_msg">{{ latestRevision(model)?.commit_msg }}</div>
                 </td>
                 <td>
-                  <div class="check-badge" :class="latestRevision(model)?.check_status">
-                    <span v-if="latestRevision(model)?.check_status === 'passed'">✓ Passed</span>
-                    <span v-else-if="latestRevision(model)?.check_status === 'failed'">✗ Failed</span>
-                    <span v-else-if="latestRevision(model)?.check_status === 'running'"><span class="spin">⟳</span> Running</span>
-                    <span v-else>— Pending</span>
+                  <div v-if="latestRevision(model)?.check_status !== 'PENDING'"
+                      class="check-badge" :class="{
+                      pending: latestRevision(model)?.check_status === 'PENDING',
+                      running: latestRevision(model)?.check_status === 'CHECKING',
+                      passed: latestRevision(model)?.check_status === 'READY',
+                      failed: latestRevision(model)?.check_status === 'NEEDS_FIX',
+                    }">
+                    <span v-if="latestRevision(model)?.check_status === 'READY'">✓ Passed</span>
+                    <span v-else-if="latestRevision(model)?.check_status === 'NEEDS_FIX'">✗ Failed</span>
+                    <span v-else-if="latestRevision(model)?.check_status === 'CHECKING'"><span class="spin">⟳</span> Checking</span>
                   </div>
+                  <button
+                    v-if="latestRevision(model)?.check_status === 'PENDING'"
+                    class="btn-check"
+                    :disabled="checkingModelId === model.id"
+                    @click="startCheck(model)"
+                  >
+                    {{ checkingModelId === model.id ? 'Starting…' : 'Start Check' }}
+                  </button>
                 </td>
                 <td>
                   <button
                     class="btn-sim"
-                    :disabled="latestRevision(model)?.check_status !== 'passed'"
-                    :title="latestRevision(model)?.check_status !== 'passed' ? 'Model check must pass first' : 'Start simulation'"
+                    :disabled="latestRevision(model)?.check_status !== 'READY'"
+                    :title="latestRevision(model)?.check_status !== 'READY' ? 'Model check must pass first' : 'Start simulation'"
                     @click="$router.push(`/job-start/${model.id}`)"
                   >
                     <svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -131,7 +144,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useJobStore } from '@/stores/jobs'
 
@@ -144,12 +157,19 @@ const dragging    = ref(false)
 const submitting  = ref(false)
 const committed   = ref(false)
 const commitError = ref(null)
+const checkingModelId = ref(null)
+
 
 const form = reactive({ project: '', commitMsg: '' })
+
+let pollTimer = null
+let stopPolling = false
+
 
 function latestRevision(model) {
   return model.revisions?.at(-1)
 }
+
 
 function onDrop(e) {
   dragging.value = false
@@ -164,6 +184,26 @@ function onFileChange(e) {
   if (file) {
     fileObject.value = file
     fileName.value   = file.name
+  }
+}
+
+async function startCheck(model) {
+  const revision = latestRevision(model)
+  if (!revision || revision.check_status !== 'PENDING') return
+
+  checkingModelId.value = model.id
+  commitError.value = null
+
+  try {
+    await jobStore.startCheck({
+      modelId: model.id,
+      revisionId: revision.revision_id,
+    })
+    pollCheckStatus(model.id, revision.revision_id)
+  } catch (error) {
+    commitError.value = `Could not start model check: ${error.message}`
+  } finally {
+    checkingModelId.value = null
   }
 }
 
@@ -198,6 +238,39 @@ function formatDate(iso) {
   if (h < 24) return `${h}h ago`
   return `${Math.floor(h / 24)}d ago`
 }
+
+onBeforeUnmount(() => {
+  stopPolling = true
+  clearTimeout(pollTimer)
+})
+
+async function pollCheckStatus(modelId, revisionId) {
+  if (stopPolling) return
+
+  try {
+    const model = await jobStore.refreshModel(modelId)
+    const revision = model.revisions?.find(
+      item => item.revision_id === revisionId
+    )
+
+    if (!revision) {
+      throw new Error(`Revision ${revisionId} not found`)
+    }
+
+    if (revision.check_status === 'READY' ||
+        revision.check_status === 'NEEDS_FIX') {
+      return
+    }
+
+    pollTimer = setTimeout(
+      () => pollCheckStatus(modelId, revisionId),
+      2000
+    )
+  } catch (error) {
+    commitError.value = `Could not refresh check status: ${error.message}`
+  }
+}
+
 </script>
 
 <style scoped>
@@ -259,4 +332,6 @@ function formatDate(iso) {
 .btn-sim { display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;background:var(--blue);color:#fff;border:none;cursor:pointer;transition:all .15s;white-space:nowrap; }
 .btn-sim:hover:not(:disabled) { background:#2563EB; }
 .btn-sim:disabled { opacity:.3;cursor:not-allowed; }
+.btn-check { display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;background:var(--blue-dim);color:#fff;border:none;cursor:pointer;transition:all .15s;white-space:nowrap; }
+.btn-check:hover:not(:disabled) { background:#2563EB; }
 </style>

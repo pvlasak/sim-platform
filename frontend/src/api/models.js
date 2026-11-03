@@ -48,3 +48,14 @@ export async function commitModel(payload) {
   }
   return res.json()
 }
+
+export async function startCheck(modelId, revisionId) {
+  return request(
+    `/models/${encodeURIComponent(modelId)}/revisions/${revisionId}/check`,
+    { method: 'POST' },
+  )
+}
+
+export async function fetchModel(modelId) {
+  return request(`/models/${encodeURIComponent(modelId)}`)
+}
