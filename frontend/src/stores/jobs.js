@@ -2,7 +2,10 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { fetchModels, fetchModel, commitModel as apiCommitModel, startCheck as apiStartCheck } from '@/api/models.js'
+import { fetchModels, fetchModel, commitModel as apiCommitModel, 
+         startCheck as apiStartCheck,
+         uploadModelRevision as apiUploadModelRevision,
+} from '@/api/models.js'
 import { fetchJobs,   startJob   as apiStartJob    } from '@/api/jobs.js'
 
 export const useJobStore = defineStore('jobs', () => {
@@ -103,10 +106,32 @@ async function refreshModel(modelId) {
   return updated
 }
 
+async function uploadModelRevision({ modelId, file, commitMsg }) {
+  try {
+    const updated = await apiUploadModelRevision(modelId, {
+      file,
+      commitMsg,
+      committedBy: 'P.Vlasak',
+    })
+
+    const index = models.value.findIndex(model => model.id === updated.id)
+    if (index === -1) {
+      models.value.unshift(updated)
+    } else {
+      models.value[index] = updated
+    }
+
+    return updated
+  } catch (e) {
+    error.value = e.message
+    throw e
+  }
+}
+
   return {
     models, jobs, loading, error,
     runningCount, completedCount,
     loadAll, commitModel, startJob, startCheck,
-    refreshModel,
+    refreshModel, uploadModelRevision,
   }
 })

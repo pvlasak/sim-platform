@@ -2,12 +2,13 @@ FROM node:26-alpine AS build_step
 
 RUN mkdir -p /home/app/src
 
-COPY ./src /home/app/src
 COPY ./package.json ./index.html ./vite.config.js /home/app
 
 WORKDIR /home/app
 
 RUN npm install
+
+COPY ./src /home/app/src
 
 RUN npm run build
 

@@ -53,7 +53,6 @@ class Model(BaseModel):
     model_id: UUID
     project: str
     description: str | None
-    number_of_revisions: int
     revisions: list[ModelRevision] = []
 
 
@@ -101,7 +100,6 @@ async def save_model_to_mongo(model: Model):
         "_id": str(model.model_id),
         "project": model.project,
         "description": model.description,
-        "number_of_revisions": model.number_of_revisions,
         "revisions": [rev.dict() for rev in model.revisions],
     }
     col.insert_one(doc)
@@ -112,7 +110,6 @@ async def update_model_in_mongo(model: Model):
     doc = {
         "project": model.project,
         "description": model.description,
-        "number_of_revisions": model.number_of_revisions,
         "revisions": [rev.dict() for rev in model.revisions],
     }
     await col.update_one({"_id": str(model.model_id)}, {"$set": doc})
@@ -162,7 +159,6 @@ async def create_new_model(
         model_id = model_id,
         project = project,
         description = description,
-        number_of_revisions = 0,
         revisions = [],
     )
     revision = ModelRevision(
@@ -197,7 +193,6 @@ async def create_new_model(
         revision.git_error  = git_result.get("error")
         # Add revision to model
         model.revisions.append(revision)
-        model.number_of_revisions = len(model.revisions)
         # Save Model to MongoDB 
         await save_model_to_mongo(model)
     else:
@@ -213,8 +208,6 @@ async def create_new_model(
 async def create_new_model_revision(
     model_id: UUID,
     file:         UploadFile = File(...),
-    project:      str        = Form(...),
-    description:  str        = Form(...),
     commit_msg:   str        = Form(...),
     committed_by: str        = Form(...),
 ):
@@ -225,12 +218,21 @@ async def create_new_model_revision(
         raise HTTPException(status_code=404, detail="Model not found")  
     doc["model_id"] = UUID(doc.pop("_id"))
     existing_model = Model(**doc)
-    existing_model.number_of_revisions += 1
+    if (
+        not existing_model.revisions
+        or existing_model.revisions[-1].check_status != "NEEDS_FIX"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="A correction can only be uploaded when the latest revision needs fixes.",
+        )
     current_revision_id = existing_model.revisions[-1].revision_id if existing_model.revisions else 0
-    new_revision_id = current_revision_id + 1
+    new_revision_id = max(
+        revision.revision_id for revision in existing_model.revisions
+    ) + 1
     new_revision = ModelRevision(
             revision_id = new_revision_id,
-            file_name = file.filename,
+            file_name = file.filename or "model",
             commit_msg = commit_msg,
             committed_by = committed_by,
             committed_at = datetime.now(timezone.utc).isoformat(),
@@ -243,29 +245,37 @@ async def create_new_model_revision(
             )
     
     # Upload Model Package to S3 Storage
-    if await upload_to_s3(file.file, S3_BUCKET_NAME, new_revision.package_s3_key):
-       # copy to git repo and push
+    if not await upload_to_s3(
+        file.file, S3_BUCKET_NAME, new_revision.package_s3_key
+    ):
+        raise HTTPException(status_code=500, detail="Model upload failed")
+    manifest_file_path = None
+    try:
         manifest_filename, manifest_file_path = create_commit_manifest(new_revision)
         git_result = await push_model_to_git(
             file_path  = manifest_file_path,
             file_name  = manifest_filename,
             model_id   = model_id,
-            project    = project,
+            revision_id = new_revision_id,
+            project    = existing_model.project,
             commit_msg = commit_msg,
             author     = committed_by,
         )
+        if not git_result.get("success"):
+            raise HTTPException(
+                status_code=502,
+                detail=f"GitLab push failed: {git_result.get('error')}",
+            )
         # Update Git status
-        new_revision.git_pushed = git_result.get("success", False)
+        new_revision.git_pushed = git_result.get("success")
         new_revision.git_commit_id = git_result.get("commit_id")
-        new_revision.git_error  = git_result.get("error")
         # Add model revision to a list of revisions 
         existing_model.revisions.append(new_revision)
         # Save Model Revision in MongoDB
         await update_model_in_mongo(existing_model)
-    else:
-        logging.error("Model upload to S3 was NOT successfull: %s", str(file.filename))
-        raise HTTPException(status_code=500, detail="Model upload failed")
-    os.remove(manifest_file_path)
+    finally:
+        if manifest_file_path and os.path.exists(manifest_file_path):
+            os.remove(manifest_file_path)
     # Create response for frontend.
     response = existing_model.model_dump(mode="json")
     response["id"] = response.pop("model_id")

@@ -59,3 +59,24 @@ export async function startCheck(modelId, revisionId) {
 export async function fetchModel(modelId) {
   return request(`/models/${encodeURIComponent(modelId)}`)
 }
+
+export async function uploadModelRevision(modelId, { file, commitMsg, committedBy }) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('commit_msg', commitMsg)
+  form.append('committed_by', committedBy)
+
+  const res = await fetch(
+    `${BASE}/models/${encodeURIComponent(modelId)}/revisions`,
+    {
+      method: 'POST',
+      body: form,
+    },
+  )
+
+  if (!res.ok) {
+    throw new Error(`API ${res.status}: ${await res.text()}`)
+  }
+
+  return res.json()
+}
