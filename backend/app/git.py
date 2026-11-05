@@ -8,8 +8,8 @@
 # SSH key authentication is used — configure your SSH key in GitLab once
 # and git push works without any passwords or tokens in this code.
 #
-# If GIT_REPO_PATH does not exist the Git step is skipped silently.
-# The model is still saved to MongoDB — nothing breaks.
+# If GIT_REPO_PATH is unset, Git push returns an error.
+# If the configured path is missing, the repository is cloned there.
 
 import os
 import asyncio
@@ -62,7 +62,7 @@ async def push_model_to_git(
     and push to remote.
 
     Steps:
-      1. Check local repo exists — skip silently if not
+      1. Check local repo exists — returns error if not
       2. Copy file into root of repo
       3. git config user.name
       4. git config user.email
@@ -75,7 +75,7 @@ async def push_model_to_git(
       { success: bool, commit_id: str | None, error: str | None }
     """
 
-    # Skip if not configured or folder does not exist
+    # Skip if GIT_REPO_PATH is not configured
     if not GIT_REPO_PATH:
         print("[git] GIT_REPO_PATH not set in .env — skipping")
         return {"success": False, "commit_id": None, "error": "GIT_REPO_PATH not set"}

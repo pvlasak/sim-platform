@@ -171,50 +171,6 @@ let   logTimer    = null
 const running = computed(() => jobStore.jobs.filter(j => j.status === 'running'))
 const queued  = computed(() => jobStore.jobs.filter(j => j.status === 'queued'))
 
-// Auto-select first running job on load
-if (running.value.length) selectedJob.value = running.value[0]
-
-// Simulate live log output when a job is selected
-watch(selectedJob, (job) => {
-  clearInterval(logTimer)
-  logLines.value = []
-  if (!job || job.status === 'done') return
-
-  let cycle = 101200 + Math.floor(Math.random() * 1000)
-
-  logTimer = setInterval(async () => {
-    const dt = (6.17 + (Math.random() - 0.5) * 0.04).toFixed(2)
-    const t  = (cycle * 6.17e-7).toFixed(3)
-    logLines.value.push(`  ${cycle}   dt=${dt}E-07   t= ${t}E-02`)
-    cycle += 20
-
-    if (Math.random() < 0.05) {
-      logLines.value.push(`W A R N: negative volume element ${Math.floor(Math.random() * 9000000 + 1000000)}`)
-    }
-
-    // Keep last 40 lines only
-    if (logLines.value.length > 40) logLines.value.shift()
-
-    // Scroll to bottom
-    await nextTick()
-    if (termEl.value) termEl.value.scrollTop = termEl.value.scrollHeight
-  }, 700)
-}, { immediate: true })
-
-onUnmounted(() => clearInterval(logTimer))
-
-function lineClass(line) {
-  if (line.includes('W A R N')) return 'line-warn'
-  if (line.includes('E r r o r')) return 'line-err'
-  return 'line-normal'
-}
-
-function cancelJob() {
-  if (!selectedJob.value) return
-  const job = jobStore.jobs.find(j => j.id === selectedJob.value.id)
-  if (job) job.status = 'failed'
-  clearInterval(logTimer)
-}
 </script>
 
 <style scoped>

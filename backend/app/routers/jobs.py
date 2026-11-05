@@ -18,14 +18,6 @@ class CheckerRun(BaseModel):
     status: Literal["QUEUED", "RUNNING", "PASSED", "FAILED"]
     result_s3_uri: str | None = None
 
-class Job(BaseModel):
-    job_id: UUID
-    model_id: UUID
-    revision_id: str
-    status: Literal[
-        "PROVISIONING", "QUEUED", "RUNNING",
-        "COMPLETED", "FAILED", "FINALIZING", "ARCHIVED"
-    ]
 
 # ── Request schema ─────────────────────────────────────────────────
 class JobRequest(BaseModel):
@@ -33,11 +25,22 @@ class JobRequest(BaseModel):
     model_id:    str
     model_name:  str
     solver:      str   = "LS-DYNA MPP R14"
-    licence:     str   = "MPPDYNA"
-    preset:      str   = "Frontal ODB 56 km/h"
+    licence:     str   = "MPP"
+    preset:      str   = "Frontal Impact 56 km/h"
     instance:    str   = "c5n.18xlarge"
     nodes:       int   = 4
     started_by:  str   = "unknown"
+
+
+class Job(BaseModel):
+    job_id: UUID
+    model_id: UUID
+    job_request: JobRequest
+    revision_id: str
+    status: Literal[
+        "PROVISIONING", "QUEUED", "RUNNING",
+        "COMPLETED", "FAILED", "FINALIZING", "ARCHIVED"
+    ]
 
 # ── Helper ─────────────────────────────────────────────────────────
 def _clean(doc):

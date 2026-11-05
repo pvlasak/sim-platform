@@ -45,8 +45,8 @@ class ModelRevision(BaseModel):
     package_s3_key: str | None = None
     package_s3_uri: str
     check_status: Literal["PENDING", "CHECKING", "READY", "NEEDS_FIX"]
-    git_pushed: bool | None = None,
-    git_commit_id: str | None = None,
+    git_pushed: bool | None = None
+    git_commit_id: str | None = None
     git_error: str | None = None
 
 class Model(BaseModel):
@@ -102,7 +102,7 @@ async def save_model_to_mongo(model: Model):
         "description": model.description,
         "revisions": [rev.dict() for rev in model.revisions],
     }
-    col.insert_one(doc)
+    await col.insert_one(doc)
 
 async def update_model_in_mongo(model: Model):
     """Update model metadata in MongoDB."""
@@ -174,9 +174,16 @@ async def create_new_model(
             git_commit_id = None,
             git_error = None
             )
-    # Upload Model Package to S3 Storage
-    if await upload_to_s3(file.file, S3_BUCKET_NAME, revision.package_s3_key):
-        # create commit manifest file, copy it to git repo and push
+    # Upload the package first; do not save the model unless GitLab confirms
+    # the manifest commit.
+    if not await upload_to_s3(
+        file.file, S3_BUCKET_NAME, revision.package_s3_key
+    ):
+        logging.error("Model upload to S3 failed: %s", file.filename)
+        raise HTTPException(status_code=500, detail="Model upload failed")
+
+    manifest_file_path = None
+    try:
         manifest_filename, manifest_file_path = create_commit_manifest(revision)
         git_result = await push_model_to_git(
             file_path  = manifest_file_path,
@@ -187,18 +194,24 @@ async def create_new_model(
             commit_msg = commit_msg,
             author     = committed_by,
         )
+        if not git_result.get("success"):
+            logging.error("GitLab manifest push failed: %s", git_result.get("error"))
+            raise HTTPException(
+                status_code=502,
+                detail=f"GitLab manifest push failed: {git_result.get('error')}",
+            )
+
         # Update Git Push Status  
-        revision.git_pushed = git_result.get("success", False)
+        revision.git_pushed = git_result.get("success")
         revision.git_commit_id = git_result.get("commit_id")
-        revision.git_error  = git_result.get("error")
+        revision.git_error  = None
         # Add revision to model
         model.revisions.append(revision)
         # Save Model to MongoDB 
         await save_model_to_mongo(model)
-    else:
-        logging.error("Model upload to S3 was NOT successfull: %s", str(file.filename))
-        raise HTTPException(status_code=500, detail="Model upload failed")
-    os.remove(manifest_file_path)
+    finally:
+        if manifest_file_path and os.path.exists(manifest_file_path):
+            os.remove(manifest_file_path)
     # Create response for frontend.
     response = model.model_dump(mode="json")
     response["id"] = response.pop("model_id")
