@@ -64,15 +64,15 @@ export const useJobStore = defineStore('jobs', () => {
   async function startJob(payload) {
     try {
       const newJob = await apiStartJob({
-        name:        payload.name,
-        model_id:    payload.modelId,
-        model_name:  payload.modelName,
+        projectName: payload.projectName,
+        modelId:    payload.modelId,
+        revisionId: payload.revisionId,
+        loadcase:  payload.loadcase,
+        jobName: payload.jobName,
         solver:      payload.solver,
-        licence:     payload.licence,
-        preset:      payload.preset,
         instance:    payload.instance,
         nodes:       payload.nodes,
-        started_by:  'P.Vlasak',
+        startedBy:  'P.Vlasak',
       })
       jobs.value.unshift(newJob)
       return newJob

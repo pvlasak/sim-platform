@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Background
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from ..database import models_col
-from ..git import push_model_to_git
+from ..git import push_to_git
 import uuid
 from uuid import UUID
 from typing import Literal
@@ -62,9 +62,9 @@ def _clean(doc):
     return doc
 
 
-def create_commit_manifest(ModelRevision):
+def create_model_manifest(ModelRevision):
     """Create a manifest file for the model revision, to be stored in S3."""
-    commit_manifest = {
+    model_manifest = {
         "revision_id": ModelRevision.revision_id,
         "file_name": ModelRevision.file_name,
         "commit_msg": ModelRevision.commit_msg,
@@ -79,7 +79,7 @@ def create_commit_manifest(ModelRevision):
     manifest_path = os.path.join(TEMP_DIR, manifest_name)
     with open(manifest_path, "w") as f:
         import yaml
-        yaml.dump(commit_manifest, f)   
+        yaml.dump(model_manifest, f)   
     return (manifest_name, manifest_path)
 
 
@@ -184,8 +184,8 @@ async def create_new_model(
 
     manifest_file_path = None
     try:
-        manifest_filename, manifest_file_path = create_commit_manifest(revision)
-        git_result = await push_model_to_git(
+        manifest_filename, manifest_file_path = create_model_manifest(revision)
+        git_result = await push_to_git(
             file_path  = manifest_file_path,
             file_name  = manifest_filename,
             revision_id = revision_id,
@@ -193,6 +193,8 @@ async def create_new_model(
             project    = project,
             commit_msg = commit_msg,
             author     = committed_by,
+            git_repo_key = "model",
+            job_id = None,
         )
         if not git_result.get("success"):
             logging.error("GitLab manifest push failed: %s", git_result.get("error"))
@@ -264,8 +266,8 @@ async def create_new_model_revision(
         raise HTTPException(status_code=500, detail="Model upload failed")
     manifest_file_path = None
     try:
-        manifest_filename, manifest_file_path = create_commit_manifest(new_revision)
-        git_result = await push_model_to_git(
+        manifest_filename, manifest_file_path = create_model_manifest(new_revision)
+        git_result = await push_to_git(
             file_path  = manifest_file_path,
             file_name  = manifest_filename,
             model_id   = model_id,

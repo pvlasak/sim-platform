@@ -1,23 +1,155 @@
 <template>
   <div class="view">
+    <template v-if="isSubmissionMode">
+      <div class="submission-layout">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title">Selected Model Revision</div>
+          </div>
 
-    <!-- KPI row -->
+          <div v-if="selectedModel && selectedRevision" class="card-body model-overview">
+            <div class="field">
+              <div class="label">Project:</div>
+              <div class="overview-value">{{ selectedModel.project }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Description:</div>
+              <div class="overview-value">{{ selectedModel.description || '—' }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Model ID:</div>
+              <div class="overview-value">{{ selectedModel.id }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Revision:</div>
+              <div class="overview-value">{{ selectedRevision.revision_id }}</div>
+            </div>
+            <div class="field">
+              <div class="label">File:</div>
+              <div class="overview-value">{{ selectedRevision.file_name }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Check status:</div>
+              <div class="overview-value">{{ selectedRevision.check_status }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Commit:</div>
+              <div class="overview-value">{{ selectedRevision.git_commit_id || '—' }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Model Archive</div>
+              <div class="overview-value">{{ selectedRevision.package_s3_uri }}</div>
+            </div>
+          </div>
+
+          <div v-else class="card-body">
+            The selected model or revision could not be found.
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title">Job Parameters</div>
+          </div>
+
+          <form class="card-body job-request-form" @submit.prevent="submitJob">
+            <div class="field">
+              <label class="label" for="job-name">Job Name</label>
+              <input
+                id="job-name"
+                v-model="jobRequest.job_name"
+                class="input"
+                type="text"
+                placeholder="e.g. CrashTest-run-01"
+                required
+                maxlength="100"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="field">
+              <label class="label" for="job-solver">Solver</label>
+              <select id="job-solver" v-model="jobRequest.solver" class="input">
+                <option value="LS DYNA MPP R9">LS DYNA MPP R9</option>
+                <option value="LS DYNA MPP R12">LS DYNA MPP R12</option>
+                <option value="LS DYNA MPP R14">LS DYNA MPP R14</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="loadcase">Load Case Description</label>
+              <input
+                id="loadcase"
+                v-model="jobRequest.loadcase"
+                class="input"
+                type="text"
+                placeholder="Load case description"
+                required
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="field">
+              <label class="label" for="job-instance">Instance Type</label>
+              <select id="job-instance" v-model="jobRequest.instance" class="input">
+                <option value="c5n.18xlarge">c5n.18xlarge</option>
+                <option value="hpc6a.48xlarge">hpc6a.48xlarge</option>
+                <option value="c5n.9xlarge">c5n.9xlarge</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="job-nodes">Node Count</label>
+              <input
+                id="job-nodes"
+                v-model.number="jobRequest.nodes"
+                class="input"
+                type="number"
+                min="1"
+                max="16"
+                required
+              />
+            </div>
+
+            <button
+              class="btn btn-primary"
+              type="submit"
+              :disabled="submitting || !selectedModel || !selectedRevision"
+            >
+              <span v-if="submitting" class="btn-spinner" />
+              <span v-else>▶</span>
+              {{ submitting ? 'Submitting…' : 'Submit Job' }}
+            </button>
+            <div v-if="submitSuccess" class="notice-success" role="status">
+              ✓ {{ submitSuccess }}
+            </div>
+            <div v-if="submitError" class="notice-error" role="alert">
+              ✗ {{ submitError }}
+            </div>
+          </form>
+        </section>
+      </div>
+    </template>
+    <!-- Keep the KPI row here -->
     <div class="kpi-row">
       <div class="kpi kpi-green">
         <div class="kpi-label">Running</div>
         <div class="kpi-value">{{ running.length }}</div>
         <div class="kpi-sub">active simulations</div>
       </div>
+
       <div class="kpi kpi-amber">
         <div class="kpi-label">Queued</div>
         <div class="kpi-value">{{ queued.length }}</div>
         <div class="kpi-sub">waiting to start</div>
       </div>
+
       <div class="kpi kpi-blue">
         <div class="kpi-label">vCPUs Active</div>
         <div class="kpi-value">{{ running.length * 72 }}</div>
         <div class="kpi-sub">across all nodes</div>
       </div>
+
       <div class="kpi kpi-red">
         <div class="kpi-label">Est. Cost / hr</div>
         <div class="kpi-value">${{ (running.length * 4 * 3.888).toFixed(2) }}</div>
@@ -25,157 +157,154 @@
       </div>
     </div>
 
-    <div class="two-col">
-
-      <!-- LEFT: job list -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">All Jobs</div>
-          <div class="live-indicator">
-            <div class="dot running" />
-            <span>{{ running.length }} running</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <div
-            v-for="job in jobStore.jobs"
-            :key="job.id"
-            class="job-card"
-            :class="{ selected: selectedJob?.id === job.id }"
-            @click="selectedJob = job"
-          >
-            <div class="job-card-top">
-              <div class="dot" :class="job.status" />
-              <div class="job-name">{{ job.name }} / {{ job.id }}</div>
-              <div class="tag" :class="job.status">{{ job.status }}</div>
-            </div>
-            <div class="job-meta">
-              {{ job.instance }} · {{ job.nodes }} nodes · {{ job.preset }}
-            </div>
-            <div v-if="job.status === 'running'" class="progress-wrap">
-              <div class="progress-label">
-                <span>Simulation</span>
-                <span>{{ job.progress }}%</span>
-              </div>
-              <div class="progress-track">
-                <div class="progress-fill green" :style="{ width: job.progress + '%' }" />
-              </div>
-            </div>
-            <div v-if="job.status === 'queued'" class="queued-msg">
-              Waiting for cluster provisioning...
-            </div>
-          </div>
-        </div>
+    <!-- Keep the jobs list here; render only running jobs -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">Running Jobs</div>
       </div>
-
-      <!-- RIGHT: job detail -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            {{ selectedJob ? selectedJob.name + ' / ' + selectedJob.id : 'Select a job' }}
-          </div>
-        </div>
-
-        <div v-if="!selectedJob" class="empty-state">
-          <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--t3)"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>
-          <div>Click a job to see details</div>
-        </div>
-
-        <div v-else class="card-body">
-
-          <!-- Stats grid -->
-          <div class="stats-grid">
-            <div class="stat">
-              <div class="stat-label">Status</div>
-              <div class="stat-value">
-                <span class="tag" :class="selectedJob.status">{{ selectedJob.status }}</span>
-              </div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Solver</div>
-              <div class="stat-value mono">{{ selectedJob.solver }}</div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Instance</div>
-              <div class="stat-value mono">{{ selectedJob.instance }}</div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Nodes</div>
-              <div class="stat-value mono">{{ selectedJob.nodes }}</div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Preset</div>
-              <div class="stat-value">{{ selectedJob.preset }}</div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Est. Cost</div>
-              <div class="stat-value mono">${{ selectedJob.cost_est ?? '—' }}</div>
-            </div>
+      <div class="card-body">
+        <div v-for="job in running" :key="job.id" class="job-card">
+          <div class="job-card-top">
+            <div class="dot" :class="job.status" />
+            <div class="job-name">{{ job.name }} / {{ job.id }}</div>
+            <div class="tag" :class="job.status">{{ job.status }}</div>
           </div>
 
-          <!-- Progress -->
-          <div v-if="selectedJob.status === 'running'" style="margin-top:14px">
+          <div class="job-meta">
+            Model: {{ job.model_name || job.model_id }}
+          </div>
+
+          <div class="job-meta">
+            {{ job.solver }} · {{ job.licence }} · {{ job.instance }} · {{ job.nodes }} nodes
+          </div>
+
+          <div class="job-meta">
+            Preset: {{ job.preset }}
+          </div>
+
+          <div class="job-meta">
+            Started by: {{ job.started_by }} ·
+            {{ job.started_at ? new Date(job.started_at).toLocaleString() : 'Start time unavailable' }}
+          </div>
+
+          <div class="job-meta">
+            Estimated cost: {{ job.cost_est != null ? `$${job.cost_est}` : '—' }}
+          </div>
+
+          <div v-if="job.status === 'running'" class="progress-wrap">
             <div class="progress-label">
               <span>Simulation progress</span>
-              <span>{{ selectedJob.progress }}%</span>
+              <span>{{ job.progress ?? 0 }}%</span>
             </div>
-            <div class="progress-track" style="margin-top:4px">
-              <div class="progress-fill green" :style="{ width: selectedJob.progress + '%' }" />
+            <div class="progress-track">
+              <div
+                class="progress-fill green"
+                :style="{ width: `${job.progress ?? 0}%` }"
+              />
             </div>
           </div>
-
-          <!-- Live log terminal -->
-          <div class="term-label">Live Output</div>
-          <div class="terminal" ref="termEl">
-            <div v-for="(line, i) in logLines" :key="i" :class="lineClass(line)">
-              {{ line }}
-            </div>
-            <div><span class="cursor" /></div>
-          </div>
-
-          <!-- Actions -->
-          <div class="action-row">
-            <button
-              v-if="selectedJob.status === 'running' || selectedJob.status === 'queued'"
-              class="btn btn-danger"
-              @click="cancelJob"
-            >
-              Cancel Job
-            </button>
-            <button
-              v-if="selectedJob.status === 'done'"
-              class="btn btn-primary"
-              @click="$router.push('/results')"
-            >
-              View Results →
-            </button>
-          </div>
-
+        </div>
+        <div v-if="!running.length" class="empty-state">
+          No running jobs.
         </div>
       </div>
-
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useJobStore } from '@/stores/jobs'
+import { useRoute } from 'vue-router'
 
 const jobStore   = useJobStore()
-const selectedJob = ref(null)
-const termEl      = ref(null)
-const logLines    = ref([])
-let   logTimer    = null
+const route = useRoute()
 
 const running = computed(() => jobStore.jobs.filter(j => j.status === 'running'))
 const queued  = computed(() => jobStore.jobs.filter(j => j.status === 'queued'))
+
+const selectedModel = computed(() => {
+  const modelId = route.query.modelId
+  if (typeof modelId !== 'string') return null
+
+  return jobStore.models.find(model => model.id === modelId) ?? null
+})
+
+const selectedRevision = computed(() => {
+  const revisionId = Number(route.query.revisionId)
+  if (!Number.isInteger(revisionId) || revisionId < 1) return null
+
+  return selectedModel.value?.revisions?.find(
+    revision => revision.revision_id === revisionId,
+  ) ?? null
+})
+
+const hasModelSelection = computed(
+  () => route.query.modelId !== undefined || route.query.revisionId !== undefined,
+)
+
+const isSubmissionMode = computed(() => hasModelSelection.value)
+
+const jobRequest = reactive({
+  job_name: '',
+  solver: '',
+  loadcase: '',
+  instance: 'c5n.18xlarge',
+  nodes: 4, 
+  started_by: 'P.Vlasak',
+})
+
+const submitting = ref(false)
+const submitError = ref('')
+const submitSuccess = ref('')
+
+async function submitJob() {
+  if (
+    !selectedModel.value ||
+    !selectedRevision.value ||
+    selectedRevision.value.check_status !== 'READY'
+  ) {
+    submitError.value = 'Select a model revision that has passed checking.'
+    return
+  }
+
+  submitting.value = true
+  submitError.value = ''
+  submitSuccess.value = ''
+
+  try {
+    await jobStore.startJob({
+      projectName: selectedModel.value.project,
+      modelId: selectedModel.value.id,
+      revisionId: String(selectedRevision.value.revision_id),
+      loadcase: jobRequest.loadcase.trim(),
+      jobName: jobRequest.job_name.trim(),
+      solver: jobRequest.solver,
+      instance: jobRequest.instance,
+      nodes: jobRequest.nodes,
+      startedBy: jobRequest.started_by,
+    })
+
+    submitSuccess.value = 'Job request submitted.'
+    Object.assign(jobRequest, {
+    job_name: '',
+    solver: '',
+    loadcase: '',
+    instance: 'c5n.18xlarge',
+    nodes: 4,
+    started_by: 'P.Vlasak',
+    })
+  } catch (error) {
+    submitError.value = error.message || 'Could not submit the job request.'
+  } finally {
+    submitting.value = false
+  }
+}
 
 </script>
 
 <style scoped>
 .view { display: flex; flex-direction: column; gap: 16px; }
-
 .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
 .kpi {
   background: var(--card); border: 1px solid var(--brd);
@@ -274,14 +403,122 @@ const queued  = computed(() => jobStore.jobs.filter(j => j.status === 'queued'))
 }
 @keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
 
-/* Actions */
-.action-row { display:flex;gap:8px;margin-top:12px; }
-.btn {
-  display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:5px;
-  font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;
+.model-overview {
+  background: rgba(59, 130, 246, 0.06);
 }
-.btn-primary { background:var(--blue);color:#fff; }
-.btn-primary:hover { background:#2563EB; }
-.btn-danger  { background:var(--red-dim);color:var(--red);border:1px solid var(--red-dim); }
-.btn-danger:hover  { background:rgba(239,68,68,.2); }
+
+.model-overview .field:first-child {
+  margin-top: 0;
+}
+
+.overview-value {
+  width: 100%;
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid var(--blue-dim);
+  border-radius: 5px;
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--t1);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.submission-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+@media (max-width: 800px) {
+  .submission-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field { margin-top: 12px; }
+
+.label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 5px;
+}
+
+.input {
+  width: 100%;
+  background: var(--surf);
+  border: 1px solid var(--brd2);
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--t1);
+  outline: none;
+  transition: border-color .15s;
+  appearance: none;
+}
+
+.input:focus { border-color: var(--blue); }
+.input::placeholder { color: var(--t3); }
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all .15s;
+}
+
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #2563EB; }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-spinner {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .3);
+  border-top-color: #fff;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.notice-success {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  background: var(--green-dim);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+}
+
+.notice-error {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  background: var(--red-dim);
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+}
 </style>
+

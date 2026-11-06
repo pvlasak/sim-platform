@@ -27,6 +27,7 @@ GIT_BRANCH     = os.getenv("GIT_BRANCH",  default=None)
 GIT_USER_NAME  = os.getenv("GIT_USER_NAME",  default=None)
 GIT_USER_EMAIL = os.getenv("GIT_USER_EMAIL", default=None)
 
+
 def sanitize_project_name(s: str) -> str:
     """Strip anything that isn't alphanumeric/underscore/hyphen, to keep
     the value safe for use as a directory name inside the repo."""
@@ -48,14 +49,15 @@ async def _run(cmd: list[str],  cwd: str = GIT_REPO_PATH) -> tuple[int, str]:
     return proc.returncode, stderr.decode().strip()
 
 
-async def push_model_to_git(
+async def push_to_git(
     file_path:  str,
     file_name:  str,
     model_id:   str,
     revision_id: int,
-    project:    str,
     commit_msg: str,
     author:     str,
+    git_repo_key:    str | None = None,
+    job_id:     str | None = None,
 ) -> dict:
     """
     Copy the uploaded file into the local git repository
@@ -74,7 +76,32 @@ async def push_model_to_git(
     Returns:
       { success: bool, commit_id: str | None, error: str | None }
     """
-
+    # Validate git_repo_key and build relative path inside repo
+    if git_repo_key == "model":
+        relative_dir = f"models/{model_id}/revisions/{revision_id}"
+    elif git_repo_key == "job":
+        if not job_id:
+            return {
+                "success": False,
+                "commit_id": None,
+                "error": "job_id is required for a job manifest",
+            }
+        relative_dir = f"jobs/{job_id}"
+    elif git_repo_key == "result":
+        if not job_id:
+            return {
+                "success": False,
+                "commit_id": None,
+                "error": "job_id is required for a result manifest",
+            }
+        relative_dir = f"results/{job_id}"
+    else:
+        return {
+            "success": False,
+            "commit_id": None,
+            "error": f"Invalid manifest key: {git_repo_key!r}. Expected 'model', 'job', or 'result'.",
+        }
+    
     # Skip if GIT_REPO_PATH is not configured
     if not GIT_REPO_PATH:
         print("[git] GIT_REPO_PATH not set in .env — skipping")
@@ -90,7 +117,6 @@ async def push_model_to_git(
 
     # Build a unique, sanitized directory name at repo root: <model_id>_<project>/
     safe_file_name = os.path.basename(file_name)  # strip any path components client sent
-    relative_dir   = f"{model_id}_{sanitize_project_name(project)}/revisions/{revision_id}"
     target_dir     = os.path.join(GIT_REPO_PATH, relative_dir)
     os.makedirs(target_dir, exist_ok=True)
 

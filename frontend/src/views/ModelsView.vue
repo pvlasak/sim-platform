@@ -370,6 +370,18 @@ async function handleCorrectionFile(event) {
   }
 }
 
+function startSimulation(model, revision) {
+  if (revision.check_status !== 'READY') return
+  
+  router.push({
+    path: '/jobs',
+    query: {
+      modelId: model.id,
+      revisionId: String(revision.revision_id),
+    },
+  })
+}
+
 </script>
 
 <style scoped>

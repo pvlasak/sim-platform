@@ -50,7 +50,7 @@ export async function commitModel(payload) {
 }
 
 export async function startCheck(modelId, revisionId) {
-  return request(
+  return request(M
     `/models/${encodeURIComponent(modelId)}/revisions/${revisionId}/check`,
     { method: 'POST' },
   )
