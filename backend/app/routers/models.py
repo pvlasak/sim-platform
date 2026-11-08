@@ -190,7 +190,6 @@ async def create_new_model(
             file_name  = manifest_filename,
             revision_id = revision_id,
             model_id   = model_id,
-            project    = project,
             commit_msg = commit_msg,
             author     = committed_by,
             git_repo_key = "model",

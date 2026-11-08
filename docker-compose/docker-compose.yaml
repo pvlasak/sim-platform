@@ -28,6 +28,8 @@ services:
       - S3_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=minio-user
       - AWS_SECRET_ACCESS_KEY=minio-pass
+    volumes:
+      - ${HOME}/.ssh/id_rsa:/root/.ssh/id_rsa:ro
   frontend:
     image: sim-app-frontend:1.0.1
     # no "ports": reached only through the gateway
