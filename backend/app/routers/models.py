@@ -271,9 +271,10 @@ async def create_new_model_revision(
             file_name  = manifest_filename,
             model_id   = model_id,
             revision_id = new_revision_id,
-            project    = existing_model.project,
             commit_msg = commit_msg,
             author     = committed_by,
+            git_repo_key = "model",
+            job_id = None
         )
         if not git_result.get("success"):
             raise HTTPException(
