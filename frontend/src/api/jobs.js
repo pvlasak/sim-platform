@@ -24,16 +24,27 @@ export async function fetchJobs() {
 // payload: { name, model_id, model_name, solver, licence,
 //            preset, instance, nodes, started_by }
 export async function startJob(payload) {
-  return request('/jobs', {
+  const form = new FormData()
+    form.append('project_name', payload.projectName)
+    form.append('model_id',      payload.modelId)
+    form.append('revision_id', payload.revisionId)
+    form.append('loadcase',   payload.loadcase)
+    form.append('job_name', payload.jobName)    
+    form.append('solver', payload.solver)
+    form.append('instance', payload.instance)
+    form.append('nodes', payload.nodes)
+    form.append('started_by', payload.startedBy)
+
+  const res = await fetch(`${BASE}/jobs`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: form,
+    // No Content-Type header — browser sets it automatically with boundary
   })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`API ${res.status}: ${text}`)
+  }
+  return res.json()
 }
 
-// PATCH /api/jobs/:id — update job status (called by Jenkins later)
-export async function updateJob(id, update) {
-  return request(`/jobs/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(update),
-  })
-}

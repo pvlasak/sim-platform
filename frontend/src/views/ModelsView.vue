@@ -29,19 +29,24 @@
 
           <div class="field">
             <div class="label">Project Name</div>
-            <input v-model="form.project" class="input" type="text" placeholder="e.g. project-frontal-v4" />
+            <input v-model="form.project" class="input" type="text" placeholder="e.g. Project-XYZ-v01" />
+          </div>
+
+          <div class="field">
+            <div class="label">Model Description </div>
+            <input v-model="form.description" class="input" type="text" placeholder="Describe the model" />
           </div>
 
           <div class="field">
             <div class="label">Commit Message</div>
-            <input v-model="form.commitMsg" class="input" type="text" placeholder="e.g. Update barrier stiffness v4.2" />
+            <input v-model="form.commitMsg" class="input" type="text" placeholder="Describe the modification you made" />
           </div>
 
           <div class="info-box">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
             <div>
-              Commit is saved to MongoDB. A GitLab commit and
-              <strong>model check pipeline</strong> will start automatically.
+               Model details are saved to MongoDB and commit YAML manifest is pushed to GitLab.
+              <strong>Model archive is uploaded to S3 storage.</strong> 
             </div>
           </div>
 
@@ -52,11 +57,11 @@
           >
             <span v-if="submitting" class="btn-spinner" />
             <svg v-else width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            {{ submitting ? 'Saving...' : 'Commit &amp; Start Model Check' }}
+            {{ submitting ? 'Saving...' : 'Commit &amp; Start Model Upload' }}
           </button>
 
           <div v-if="committed" class="notice-success">
-            ✓ Model saved to MongoDB — check pipeline started
+            ✓ Model uploaded to S3 storage.
           </div>
           <div v-if="commitError" class="notice-error">
             ✗ {{ commitError }}
@@ -87,46 +92,116 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="model in jobStore.models" :key="model.id">
-                <td>
-                  <div class="model-name">{{ model.name }}</div>
-                  <div class="model-meta">{{ model.project }} · {{ formatDate(model.committed_at) }}</div>
-                </td>
-                <td>
-                  <div class="commit-id">{{ model.commit_id }}</div>
-                  <div class="commit-msg-short" :title="model.commit_msg">{{ model.commit_msg }}</div>
-                </td>
-                <td>
-                  <div class="check-badge" :class="model.check_status">
-                    <span v-if="model.check_status === 'passed'">✓ Passed</span>
-                    <span v-else-if="model.check_status === 'failed'">✗ Failed</span>
-                    <span v-else-if="model.check_status === 'running'"><span class="spin">⟳</span> Running</span>
-                    <span v-else>— Pending</span>
-                  </div>
-                </td>
-                <td>
-                  <button
-                    class="btn-sim"
-                    :disabled="model.check_status !== 'passed'"
-                    :title="model.check_status !== 'passed' ? 'Model check must pass first' : 'Start simulation'"
-                    @click="$router.push(`/job-start/${model.id}`)"
+              <template v-for="model in jobStore.models" :key="model.id">
+                <tr
+                  v-for="(revision, index) in model.revisions"
+                  :key="`${model.id}-${revision.revision_id}`"
+                >
+                  <td
+                    v-if="index === 0"
+                    :rowspan="model.revisions.length"
+                    class="model-group-cell"
                   >
-                    <svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    Start Sim
-                  </button>
-                </td>
-              </tr>
+                    <div class="model-name">{{ model.project }}</div>
+                    <div class="model-meta">{{ model.description || 'No description' }}</div>
+                    <div class="model-meta">Model ID: {{ model.id }}</div>
+                  </td>
+
+                  <td>
+                    <div class="model-name">
+                      Revision {{ revision.revision_id }} · {{ revision.file_name }}
+                    </div>
+                    <div class="commit-id">{{ revision.git_commit_id || 'Commit pending' }}</div>
+                    <div class="commit-msg-short" :title="revision.commit_msg">
+                      {{ revision.commit_msg }}
+                    </div>
+                    <div class="model-meta">{{ formatDate(revision.committed_at) }}</div>
+                  </td>
+
+                  <td>
+                    <div
+                      class="check-badge"
+                      :class="{
+                        pending: revision.check_status === 'PENDING',
+                        running: revision.check_status === 'CHECKING',
+                        passed: revision.check_status === 'READY',
+                        failed: revision.check_status === 'NEEDS_FIX',
+                      }"
+                    >
+                      <span v-if="revision.check_status === 'READY'">✓ Passed</span>
+                      <span v-else-if="revision.check_status === 'NEEDS_FIX'">✗ Needs fix</span>
+                      <span v-else-if="revision.check_status === 'CHECKING'">
+                        <span class="spin">⟳</span> Checking
+                      </span>
+                    </div>
+
+                    <button
+                      v-if="revision.check_status === 'PENDING'"
+                      class="btn-check"
+                      :disabled="
+                        revision.check_status !== 'PENDING' ||
+                        checkingRevisionKey === `${model.id}:${revision.revision_id}`
+                      "
+                      @click="startCheck(model, revision)"
+                              >
+                      {{
+                        revision.check_status === 'CHECKING' ||
+                        checkingRevisionKey === `${model.id}:${revision.revision_id}`
+                          ? 'Checking…'
+                          : 'Start Check'
+                      }}
+                    </button>
+                  </td>
+
+                  <td>
+                    <button
+                      v-if="revision.check_status === 'NEEDS_FIX' &&
+                            revision.revision_id === model.revisions.at(-1)?.revision_id
+
+                      "
+                      class="btn-upload-correction"
+                      :disabled="uploadingCorrectionKey === `${model.id}:${revision.revision_id}`"
+                      @click="uploadCorrection(model, revision)"
+                    >
+                      {{
+                        uploadingCorrectionKey === `${model.id}:${revision.revision_id}`
+                          ? 'Uploading…'
+                          : 'Upload Correction'
+                      }}
+                    </button>
+                    <button
+                      v-else
+                      class="btn-sim"
+                      :disabled="revision.check_status !== 'READY'"
+                      :title="
+                        revision.check_status !== 'READY'
+                          ? 'This revision must pass checking first'
+                          : 'Start simulation with this revision'
+                      "
+                      @click="startSimulation(model, revision)"
+                    >
+                      Start Sim
+                    </button>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
   </div>
+  <input
+  ref="correctionFileInput"
+  type="file"
+  accept=".zip,.tar.gz,.k,.key"
+  hidden
+  @change="handleCorrectionFile"
+/>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useJobStore } from '@/stores/jobs'
 
@@ -139,8 +214,22 @@ const dragging    = ref(false)
 const submitting  = ref(false)
 const committed   = ref(false)
 const commitError = ref(null)
+const checkingRevisionKey = ref(null)
+const correctionFileInput = ref(null)
+const correctionTarget = ref(null)
+const uploadingCorrectionKey = ref(null)
+
 
 const form = reactive({ project: '', commitMsg: '' })
+
+let pollTimer = null
+let stopPolling = false
+
+
+function latestRevision(model) {
+  return model.revisions?.at(-1)
+}
+
 
 function onDrop(e) {
   dragging.value = false
@@ -158,6 +247,26 @@ function onFileChange(e) {
   }
 }
 
+async function startCheck(model, revision) {
+  if (revision.check_status !== 'PENDING') return
+
+  const key = `${model.id}:${revision.revision_id}`
+  checkingRevisionKey.value = key
+  commitError.value = null
+
+  try {
+    await jobStore.startCheck({
+      modelId: model.id,
+      revisionId: revision.revision_id,
+    })
+    pollCheckStatus(model.id, revision.revision_id)
+  } catch (error) {
+    commitError.value = `Could not start model check: ${error.message}`
+  } finally {
+    checkingRevisionKey.value = null
+  }
+}
+
 async function commit() {
   submitting.value  = true
   commitError.value = null
@@ -166,6 +275,7 @@ async function commit() {
     await jobStore.commitModel({
       file:      fileObject.value,
       project:   form.project || 'default-project',
+      description: form.description,
       commitMsg: form.commitMsg,
     })
     committed.value  = true
@@ -188,6 +298,90 @@ function formatDate(iso) {
   if (h < 24) return `${h}h ago`
   return `${Math.floor(h / 24)}d ago`
 }
+
+onBeforeUnmount(() => {
+  stopPolling = true
+  clearTimeout(pollTimer)
+})
+
+async function pollCheckStatus(modelId, revisionId) {
+  if (stopPolling) return
+
+  try {
+    const model = await jobStore.refreshModel(modelId)
+    const revision = model.revisions?.find(
+      item => item.revision_id === revisionId
+    )
+
+    if (!revision) {
+      throw new Error(`Revision ${revisionId} not found`)
+    }
+
+    if (revision.check_status === 'READY' ||
+        revision.check_status === 'NEEDS_FIX') {
+      return
+    }
+
+    pollTimer = setTimeout(
+      () => pollCheckStatus(modelId, revisionId),
+      2000
+    )
+  } catch (error) {
+    commitError.value = `Could not refresh check status: ${error.message}`
+  }
+}
+
+function uploadCorrection(model, revision) {
+  if (revision.check_status !== 'NEEDS_FIX') return
+
+  correctionTarget.value = {
+    modelId: model.id,
+    revisionId: revision.revision_id,
+  }
+  correctionFileInput.value?.click()
+}
+
+async function handleCorrectionFile(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+
+  const target = correctionTarget.value
+  correctionTarget.value = null
+
+  if (!file || !target) return
+
+  const commitMsg = window.prompt('Enter a unique commit message for this correction')
+  if (!commitMsg?.trim()) return
+
+  const key = `${target.modelId}:${target.revisionId}`
+  uploadingCorrectionKey.value = key
+  commitError.value = null
+
+  try {
+    await jobStore.uploadModelRevision({
+      modelId: target.modelId,
+      file,
+      commitMsg: commitMsg.trim(),
+    })
+  } catch (error) {
+    commitError.value = `Could not upload correction: ${error.message}`
+  } finally {
+    uploadingCorrectionKey.value = null
+  }
+}
+
+function startSimulation(model, revision) {
+  if (revision.check_status !== 'READY') return
+  
+  router.push({
+    path: '/jobs',
+    query: {
+      modelId: model.id,
+      revisionId: String(revision.revision_id),
+    },
+  })
+}
+
 </script>
 
 <style scoped>
@@ -249,4 +443,10 @@ function formatDate(iso) {
 .btn-sim { display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;background:var(--blue);color:#fff;border:none;cursor:pointer;transition:all .15s;white-space:nowrap; }
 .btn-sim:hover:not(:disabled) { background:#2563EB; }
 .btn-sim:disabled { opacity:.3;cursor:not-allowed; }
+.btn-check { display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;background:var(--blue-dim);color:#fff;border:none;cursor:pointer;transition:all .15s;white-space:nowrap; }
+.btn-check:hover:not(:disabled) { background:#2563EB; }
+.btn-check:disabled { opacity:.3;cursor:not-allowed; }
+.btn-upload-correction { display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:600;background:var(--red);color:#fff;border:none;cursor:pointer;transition:all .15s;white-space:nowrap; }
+.btn-upload-correction:hover:not(:disabled) { background:#b30b0b; }
+.btn-upload-correction:disabled { opacity:.3;cursor:not-allowed; }
 </style>

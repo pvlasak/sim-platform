@@ -2,7 +2,10 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { fetchModels, commitModel as apiCommitModel } from '@/api/models.js'
+import { fetchModels, fetchModel, commitModel as apiCommitModel, 
+         startCheck as apiStartCheck,
+         uploadModelRevision as apiUploadModelRevision,
+} from '@/api/models.js'
 import { fetchJobs,   startJob   as apiStartJob    } from '@/api/jobs.js'
 
 export const useJobStore = defineStore('jobs', () => {
@@ -45,6 +48,7 @@ export const useJobStore = defineStore('jobs', () => {
       const newModel = await apiCommitModel({
         file:         payload.file,        // File object — sent as multipart
         project:      payload.project,
+        description:  payload.description,
         commitMsg:    payload.commitMsg,
         committedBy:  'P.Vlasak',       // later: from auth session
       })
@@ -60,15 +64,15 @@ export const useJobStore = defineStore('jobs', () => {
   async function startJob(payload) {
     try {
       const newJob = await apiStartJob({
-        name:        payload.name,
-        model_id:    payload.modelId,
-        model_name:  payload.modelName,
+        projectName: payload.projectName,
+        modelId:    payload.modelId,
+        revisionId: payload.revisionId,
+        loadcase:  payload.loadcase,
+        jobName: payload.jobName,
         solver:      payload.solver,
-        licence:     payload.licence,
-        preset:      payload.preset,
         instance:    payload.instance,
         nodes:       payload.nodes,
-        started_by:  'P.Vlasak',
+        startedBy:  'P.Vlasak',
       })
       jobs.value.unshift(newJob)
       return newJob
@@ -78,9 +82,56 @@ export const useJobStore = defineStore('jobs', () => {
     }
   }
 
+  async function startCheck({ modelId, revisionId }) {
+  try {
+    const result = await apiStartCheck(modelId, revisionId)
+    models.value = await fetchModels()
+    return result
+  } catch (e) {
+    error.value = e.message
+    throw e
+  }
+}
+
+async function refreshModel(modelId) {
+  const updated = await fetchModel(modelId)
+  const index = models.value.findIndex(model => model.id === updated.id)
+
+  if (index === -1) {
+    models.value.unshift(updated)
+  } else {
+    models.value[index] = updated
+  }
+
+  return updated
+}
+
+async function uploadModelRevision({ modelId, file, commitMsg }) {
+  try {
+    const updated = await apiUploadModelRevision(modelId, {
+      file,
+      commitMsg,
+      committedBy: 'P.Vlasak',
+    })
+
+    const index = models.value.findIndex(model => model.id === updated.id)
+    if (index === -1) {
+      models.value.unshift(updated)
+    } else {
+      models.value[index] = updated
+    }
+
+    return updated
+  } catch (e) {
+    error.value = e.message
+    throw e
+  }
+}
+
   return {
     models, jobs, loading, error,
     runningCount, completedCount,
-    loadAll, commitModel, startJob,
+    loadAll, commitModel, startJob, startCheck,
+    refreshModel, uploadModelRevision,
   }
 })
