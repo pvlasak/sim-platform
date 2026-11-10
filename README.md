@@ -17,7 +17,7 @@ Engineer works locally
 Engineers upload a model files through a browser interface. Each upload creates automatically a GitLab commit of manifest file to `/models` directory — giving every model version a unique id, a timestamp, and an author and data are saved to MongoDB.
 
 ### 2 — Automated Model Check
-After every model upload, model manifest file is pushed to GitLab. User has an option to start model check manually. If the check is successful, model status is changed to READY and start of simulation is allowed. Otherwise another model revision has to be uploaded after fixing the bug. Start of simulation initiates git push of the job manifest file to GitLab `/jobs` directory and it automatically triggers provisioning of the HPC cluster on AWS from Jenkins pipeline. 
+After every model upload, model manifest file is pushed to GitLab. Engineer has an option to start model check manually. If the check is successful, model status is changed to READY and start of simulation is allowed. Otherwise another model revision has to be uploaded after fixing the bug. Start of simulation initiates git push of the job manifest file to GitLab `/jobs` directory and it automatically triggers provisioning of the HPC cluster on AWS from Jenkins pipeline. 
 The result — passed or failed — is reported back to the platform. 
 
 ### 3 — Cloud Simulation on Demand
