@@ -4,28 +4,31 @@ In some cases the model and the simulation can be two disconnected processes. Th
 **Idea behind sim-platform:**       
 Engineer works locally
 - uploads model through sim-platform frontend
-- model is versioned in GitLab with commit hash
-- same commit hash is stored in MongoDB with the job
-- cluster pulls exactly that commit
-- results are linked to that exact commit
-- anyone can reproduce the run from the same commit hash
-
+- model is uploaded to S3 storage
+- model meta-data are versioned in GitLab with model_id set as a main identifier. 
+- same model_id is stored in MongoDB for each job
+- cluster pulls exactly model data having given model_id
+- results are linked to that exact model_id
+- anyone can reproduce the run from the model that can be easily identified. 
 
 ## Project goals:
 - build **simulation operations platform**
 ### 1 — Model Management
-Engineers upload a model files through a browser interface. Each upload creates a GitLab commit automatically — giving every model version a unique commit hash, a timestamp, and an author. The model repository is the single source of truth.
+Engineers upload a model files through a browser interface. Each upload creates automatically a GitLab commit of manifest file to `/models` directory — giving every model version a unique id, a timestamp, and an author and data are saved to MongoDB.
 
 ### 2 — Automated Model Check
-After every commit, a Jenkins pipeline pulls the model and runs a validation check automatically. The result — passed or failed — is reported back to the platform. Only models that pass the check can proceed to full simulation.
+After every model upload, model manifest file is pushed to GitLab. User has an option to start model check manually. If the check is successful, model status is changed to READY and start of simulation is allowed. Otherwise another model revision has to be uploaded after fixing the bug. Start of simulation initiates git push of the job manifest file to GitLab `/jobs` directory and it automatically triggers provisioning of the HPC cluster on AWS from Jenkins pipeline. 
+The result — passed or failed — is reported back to the platform. 
 
 ### 3 — Cloud Simulation on Demand
-When an engineer starts a simulation, the platform automatically provisions an AWS ParallelCluster via Terraform, pulls the exact model version from GitLab, runs simulation via Slurm, monitors progress in real time, and destroys the cluster when finished. The engineer never touches AWS directly.
+When an engineer starts a simulation, the platform automatically provisions an AWS ParallelCluster via Terraform, pulls the exact model version from S3 storage, runs simulation via Slurm, monitors progress in real time, and destroys the cluster when finished. The engineer never touches AWS directly to prepare or destroy computational resources.
 
 ### 4 — Results Storage and Traceability
-After simulation completes, output files are downloaded to S3, key metrics are parsed and stored in MongoDB, and everything is linked back to the original GitLab commit. Six months later anyone can answer — which model version produced which result.
+After simulation completes, output files are downloaded to S3, key metrics are parsed and stored in MongoDB, and everything is linked back to the original model id. Result manifest file is pushed to GitLab directory `/results`. Six months later anyone can answer — which model version produced which result.
 
-## Deploy application on localhost
+<img width="1814" height="818" alt="Screenshot from 2026-11-10 14-49-10" src="https://github.com/user-attachments/assets/09cee3c3-5071-41b7-8b3f-e145fddfbaea" />
+
+## Deploy application on localhost using Docker Compose
 ### Prerequisities 
 - GitLab repository is existing and public SSH key is set for GitLab account, private key is available locally. 
 - install docker daemon
