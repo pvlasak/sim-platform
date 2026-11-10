@@ -24,7 +24,30 @@ When an engineer starts a simulation, the platform automatically provisions an A
 
 ### 4 — Results Storage and Traceability
 After simulation completes, output files are downloaded to S3, key metrics are parsed and stored in MongoDB, and everything is linked back to the original GitLab commit. Six months later anyone can answer — which model version produced which result.
-  
+
+## Deploy application on localhost
+### Prerequisities 
+- GitLab repository is existing and public SSH key is set for GitLab account, private key is available locally. 
+- install docker daemon
+- install docker compose
+- authentication against public DockerHub registry is successfull: *docker login*
+
+### Set up 
+1. Build Frontend Docker Image
+  - *cd frontend*
+  - *docker build -t sim-app-frontend:{version} .*
+2. Build Backend Docker Image
+  - *cd backend*
+  - *docker build -t sim-app-backend:{version} .*
+3. Attach private SSH key to backend container as a volume in order to authenticate on GitLab
+4. All environmental variables in `docker-compose.yaml` are updated.
+5. MinIO docker image is available locally. Source: https://github.com/minio/minio
+6. Start Application - run docker compose
+  - *docker compose -f docker-compose/docker-compose.yaml up*
+     application runs on 0.0.0.0:8080
+7. Stop Application
+  - *docker compose -f docker-compose/docker-compose.yaml down*
+
 
 ## Deploy application on AWS EKS Cluster
 <img width="3200" height="2000" alt="sim-platform-architecture" src="https://github.com/user-attachments/assets/a18efff1-cdaf-4324-9b6e-1fec1d772039" />
