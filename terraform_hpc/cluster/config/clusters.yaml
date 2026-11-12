@@ -1,0 +1,7 @@
+Cluster01:
+  region: eu-central-1
+  rollbackOnFailure: true
+  validationFailureLevel: WARNING
+  suppressValidators:
+  - type:KeyPairValidator
+  configuration: ${cluster_config_path}

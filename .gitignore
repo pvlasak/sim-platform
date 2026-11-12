@@ -8,15 +8,30 @@ kubernetes/gitlab-private-key-secret.yaml
 kubernetes/mongo-secret.yaml
 kubernetes/mongodb-helm-values.yaml
 
-# local .terraform dir
+# Kubernetes - local .terraform dir
 terraform/.terraform/*
 
-# tf state files
+# Kubernetes - tf state files
 terraform/*.tfstate
 terraform/*.tfstate.*
-
-# tf variable files, may include sensitive data
+# Kubernetes - tf variable files, may include sensitive data
 terraform/*.tfvars
+
+#HPC Cluster API local .terraform dir
+terraform_hpc/api/.terraform/*
+#HPC Cluster API - tf state files
+terraform_hpc/api/*.tfstate
+terraform_hpc/api/*.tfstate.*
+#HPC Cluster API - tf variable files, may include sensitive data
+terraform_hpc/api/*.tfvars
+
+# HPC Cluster deployment -  local .terraform dir
+terraform_hpc/cluster/.terraform/*
+# HPC Cluster deployment - tf state files
+terraform_hpc/cluster/*.tfstate
+terraform_hpc/cluster/*.tfstate.*
+# HPC Cluster deployment - tf variable files, may include sensitive data
+terraform_hpc/cluster/*.tfvars
 
 venv/
 kubeconfig-eks-cluster/*
