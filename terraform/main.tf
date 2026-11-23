@@ -21,7 +21,7 @@ variable public_subnets {
   default = ["10.0.10.0/24", "10.0.11.0/24", "10.0.12.0/24"]
 }
 variable instance_types {
-  default = ["t2.large"]
+  default = ["t2.medium"]
 }
 
 data "aws_availability_zones" "azs" {}
