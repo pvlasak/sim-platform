@@ -90,20 +90,20 @@ module "eks" {
 
   # EKS Managed Node Group(s)
   eks_managed_node_groups = {
-    example = {
+    eks_ng = {
       # Starting on 1.30, AL2023 is the default AMI type for EKS managed node groups
       ami_type       = "AL2023_x86_64_STANDARD"
       instance_types = var.instance_types
 
       min_size     = 1
-      max_size     = 2
+      max_size     = 4
       desired_size = 2
     }
   } 
 
 
   tags = {
-	environment = "dev"
+	  environment = "dev"
     application = "sim-app"
   }
 }
@@ -123,7 +123,84 @@ module "ebs_csi_driver_irsa" {
   }
 
   tags = {
-	environment = "dev"
+	  environment = "dev"
     application = "sim-app"
   }
+}
+
+/* IAM Role configured using Terraform module
+module "eks_autoscaler_irsa" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+
+  name = "AutoscalerRole"
+  attach_cluster_autoscaler_policy = true 
+  cluster_autoscaler_cluster_names = ["sim-app-cluster"]
+
+  oidc_providers = {
+      this = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:cluster-autoscaler"]
+    }
+  }
+}*/
+
+resource "aws_iam_policy" "autoscaler-policy" {
+  name = "autoscaler-policy"
+
+  policy = jsonencode({
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:DescribeAutoScalingInstances",
+        "autoscaling:DescribeLaunchConfigurations",
+        "autoscaling:DescribeScalingActivities",
+        "ec2:DescribeImages",
+        "ec2:DescribeInstanceTypes",
+        "ec2:DescribeLaunchTemplateVersions",
+        "ec2:GetInstanceTypesFromInstanceRequirements",
+        "eks:DescribeNodegroup"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:SetDesiredCapacity",
+        "autoscaling:TerminateInstanceInAutoScalingGroup"
+      ],
+      "Resource": ["*"]
+    }
+    ]
+  })
+}
+
+resource "aws_iam_role" "autoscaler-role" {
+  name = "autoscaler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Principal = { Federated = module.eks.oidc_provider_arn }
+      Condition = {
+        StringEquals = {
+          "${module.eks.oidc_provider}:sub" = "system:serviceaccount:kube-system:cluster-autoscaler"
+          "${module.eks.oidc_provider}:aud" = "sts.amazonaws.com"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "policy-attachment" {
+  role       = aws_iam_role.autoscaler-role.name
+  policy_arn = aws_iam_policy.autoscaler-policy.arn
+}
+
+output "AutoScalerRoleARN" {
+  value = aws_iam_role.autoscaler-role.arn
 }
