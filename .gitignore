@@ -21,3 +21,5 @@ terraform/*.tfvars
 venv/
 kubeconfig-eks-cluster/*
 CLAUDE.md
+.pytest_cache/
+__pycache__/
